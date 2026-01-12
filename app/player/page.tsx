@@ -1552,16 +1552,16 @@ const confirmCloseMiniGameResult = () => {
           {/* Khi MC đã bấm Bắt đầu - Hiện câu hỏi */}
           {currentQuestion && (
             <>
-              <div className="flex justify-between items-center mb-3">
-                <div>
-                  <h3 className="text-lg md:text-xl font-black text-red-900">
-                    CÂU HỎI SỐ {currentQuestion.questionId}
-                  </h3>
-                  <p className="text-red-800 text-sm font-bold">
-                    {getQuestionTypeLabel(questions.find(q => q.order === currentQuestion.questionId)?.type || '')} • {currentQuestion.answerLength} chữ cái
-                  </p>
-                </div>
-                <div className={`font-black text-xl md:text-2xl px-4 md:px-6 py-1.5 md:py-2 rounded-full border-2 ${
+              <div className="text-center mb-3">
+                <h3 className="text-lg md:text-xl font-black text-red-900">
+                  CÂU HỎI SỐ {currentQuestion.questionId}
+                </h3>
+                <p className="text-red-800 text-sm font-bold">
+                  {getQuestionTypeLabel(questions.find(q => q.order === currentQuestion.questionId)?.type || '')} • {currentQuestion.answerLength} chữ cái
+                </p>
+                
+                {/* Timer ở dưới title */}
+                <div className={`inline-block font-black text-xl md:text-2xl px-4 md:px-6 py-1.5 md:py-2 rounded-full border-2 mt-2 ${
                   timeLeft <= 5 
                     ? 'bg-red-800 text-yellow-400 border-yellow-400 animate-pulse' 
                     : 'bg-red-800 text-yellow-400 border-yellow-400'
@@ -1572,7 +1572,7 @@ const confirmCloseMiniGameResult = () => {
               
               {/* Nội dung câu hỏi */}
               <div className="bg-white/95 rounded-xl p-3 md:p-4 border-2 border-red-700 mb-3">
-                <p className="text-red-900 text-base md:text-lg font-bold leading-relaxed">
+                <p className="text-red-900 text-base md:text-lg font-bold leading-relaxed text-center">
                   {currentQuestion.content}
                 </p>
               </div>
@@ -1642,6 +1642,7 @@ const confirmCloseMiniGameResult = () => {
           const isCurrentQuestion = currentQuestion?.questionId === question.order;
           const isSubmitted = submittedAnswers.has(question.id);
           const isRevealed = revealedResults[question.id];
+          const questionEnded = !!revealedResults[question.id];
           const correctAnswer = isRevealed ? revealedResults[question.id].correctAnswer : null;
           const keyLetter = revealedKeys[question.id];
           const myAnswerCorrect = myAnswersCorrect[question.id];
@@ -1687,11 +1688,13 @@ const confirmCloseMiniGameResult = () => {
                 {/* Left boxes */}
                 <div className="flex gap-1 justify-end">
                   {Array.from({ length: question.keyPosition - 1 }).map((_, index) => {
-                    const inputValue = isRevealed && correctAnswer 
+                    const questionEnded = !!revealedResults[question.id];
+                    const correctAnswer = questionEnded ? revealedResults[question.id].correctAnswer : null;
+                    const inputValue = questionEnded && correctAnswer 
                       ? correctAnswer[index] 
                       : questionAnswer[index] || '';
                     
-                    return (isCurrentQuestion || isHighlighted) && !isSubmitted && !isRevealed ? (
+                    return (isCurrentQuestion || isHighlighted) && !isSubmitted && !questionEnded ? (
                       <input
                         key={index}
                         ref={(el) => {
@@ -1714,7 +1717,7 @@ const confirmCloseMiniGameResult = () => {
                       <div 
                         key={index}
                         className={`w-10 h-10 md:w-12 md:h-12 rounded-md border flex items-center justify-center font-black text-base md:text-lg uppercase ${
-                          isRevealed 
+                          questionEnded 
                             ? 'bg-white border-green-500 text-green-800'
                             : isSubmitted
                             ? myAnswerCorrect 
@@ -1741,40 +1744,59 @@ const confirmCloseMiniGameResult = () => {
                       : 'bg-yellow-400/60 border-red-500 text-red-800 border-3 opacity-80'
                     : 'bg-gray-500 border-2 border-gray-600'
                 }`}>
-                  {(isCurrentQuestion || isHighlighted) && !isSubmitted && !isRevealed ? (
-                    <input
-                      ref={(el) => {
-                        inputRefs.current[question.id][question.keyPosition - 1] = el;
-                      }}
-                      type="text"
-                      maxLength={1}
-                      value={questionAnswer[question.keyPosition - 1] || ''}
-                      onChange={(e) => handleInputChange(question.id, question.keyPosition - 1, e.target.value)}
-                      onKeyDown={(e) => handleKeyDown(e, question.id, question.keyPosition - 1)}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleClickQuestion(question, question.keyPosition - 1);
-                      }}
-                      data-question={question.id}
-                      className="w-full h-full bg-transparent text-center text-red-900 font-black text-lg md:text-xl focus:ring-0 uppercase"
-                      disabled={isSubmitted || timeLeft === 0}
-                    />
-                  ) : isRevealed ? (
-                    keyLetter
-                  ) : isSubmitted && correctAnswer ? (
-                    correctAnswer[question.keyPosition - 1]
-                  ) : null}
+                  {(() => {
+                    const questionEnded = !!revealedResults[question.id];
+                    const correctAnswer = questionEnded ? revealedResults[question.id].correctAnswer : null;
+                    
+                    // Nếu đang chơi (chưa hết giờ, chưa submit)
+                    if ((isCurrentQuestion || isHighlighted) && !isSubmitted && !questionEnded) {
+                      return (
+                        <input
+                          ref={(el) => {
+                            inputRefs.current[question.id][question.keyPosition - 1] = el;
+                          }}
+                          type="text"
+                          maxLength={1}
+                          value={questionAnswer[question.keyPosition - 1] || ''}
+                          onChange={(e) => handleInputChange(question.id, question.keyPosition - 1, e.target.value)}
+                          onKeyDown={(e) => handleKeyDown(e, question.id, question.keyPosition - 1)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleClickQuestion(question, question.keyPosition - 1);
+                          }}
+                          data-question={question.id}
+                          className="w-full h-full bg-transparent text-center text-red-900 font-black text-lg md:text-xl focus:ring-0 uppercase"
+                          disabled={isSubmitted || timeLeft === 0}
+                        />
+                      );
+                    }
+                    
+                    // Nếu câu đã kết thúc (dù player có gửi hay không)
+                    if (questionEnded) {
+                      return revealedKeys[question.id] || correctAnswer?.[question.keyPosition - 1];
+                    }
+                    
+                    // Nếu player đã gửi
+                    if (isSubmitted && correctAnswer) {
+                      return correctAnswer[question.keyPosition - 1];
+                    }
+                    
+                    // Mặc định
+                    return null;
+                  })()}
                 </div>
 
                 {/* Right boxes */}
                 <div className="flex gap-1 justify-start">
                   {Array.from({ length: question.answer.length - question.keyPosition }).map((_, index) => {
+                    const questionEnded = !!revealedResults[question.id];
+                    const correctAnswer = questionEnded ? revealedResults[question.id].correctAnswer : null;
                     const actualIndex = question.keyPosition + index;
-                    const inputValue = isRevealed && correctAnswer 
+                    const inputValue = questionEnded && correctAnswer 
                       ? correctAnswer[actualIndex] 
                       : questionAnswer[actualIndex] || '';
                     
-                    return (isCurrentQuestion || isHighlighted) && !isSubmitted && !isRevealed ? (
+                    return (isCurrentQuestion || isHighlighted) && !isSubmitted && !questionEnded ? (
                       <input
                         key={index}
                         ref={(el) => {
@@ -1797,7 +1819,7 @@ const confirmCloseMiniGameResult = () => {
                       <div 
                         key={index}
                         className={`w-10 h-10 md:w-12 md:h-12 rounded-md border flex items-center justify-center font-black text-base md:text-lg uppercase ${
-                          isRevealed 
+                          questionEnded 
                             ? 'bg-white border-green-500 text-green-800'
                             : isSubmitted
                             ? myAnswerCorrect 
@@ -1814,7 +1836,7 @@ const confirmCloseMiniGameResult = () => {
 
                 {/* Status badge - CỐ ĐỊNH 90px */}
                 <div className="flex items-center justify-end w-[90px]">
-                  {(isCurrentQuestion || isHighlighted) && !isSubmitted && !isRevealed ? (
+                  {(isCurrentQuestion || isHighlighted) && !isSubmitted && !questionEnded ? (
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -1837,7 +1859,7 @@ const confirmCloseMiniGameResult = () => {
                     <span className="bg-green-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">✓</span>
                   ) : isSubmitted && myAnswerCorrect === false ? (
                     <span className="bg-red-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">✗</span>
-                  ) : isRevealed ? (
+                  ) : questionEnded ? (
                     <span className="bg-blue-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">ĐÃ HỎI</span>
                   ) : (
                     <span className="bg-gray-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">CHƯA MỞ</span>
