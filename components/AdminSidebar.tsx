@@ -25,6 +25,13 @@ const menuItems = [
   { path: '/admin/settings', icon: FiSettings, label: 'Cài đặt Game' },
 ];
 
+import { FiMonitor, FiTv } from 'react-icons/fi';
+
+const viewPages = [
+  { path: '/player', icon: FiMonitor, label: 'Xem trang Player' },
+  { path: '/mc', icon: FiTv, label: 'Xem trang MC' },
+];
+
 export default function AdminSidebar() {
   const pathname = usePathname();
   const router = useRouter();
@@ -82,6 +89,35 @@ export default function AdminSidebar() {
             );
           })}
         </nav>
+
+        {/* Divider */}
+        <div className="my-4 border-t border-gray-700"></div>
+
+        {/* View pages */}
+        {viewPages.map((item) => {
+          const Icon = item.icon;
+          const isActive = pathname === item.path;
+          
+          return (
+            <Link
+              key={item.path}
+              href={item.path}
+              target="_blank" // ← MỞ TAB MỚI
+              rel="noopener noreferrer"
+              className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                isActive
+                  ? 'bg-gradient-to-r from-purple-600 to-purple-700 text-white shadow-lg'
+                  : 'hover:bg-gray-700 text-gray-300 hover:text-white'
+              }`}
+              title={isCollapsed ? item.label : ''}
+            >
+              <Icon size={24} className="flex-shrink-0" />
+              {!isCollapsed && (
+                <span className="font-semibold">{item.label}</span>
+              )}
+            </Link>
+          );
+        })}
 
         {/* Logout */}
         <div className="absolute bottom-4 left-0 right-0 px-4">

@@ -1512,8 +1512,8 @@ const confirmCloseMiniGameResult = () => {
       </div>
 
       {/* Khung câu hỏi - LUÔN HIỆN, CĂN GIỮA */}
-      <div className="max-w-4xl mx-auto mb-4">
-        <div className="bg-gradient-to-br from-yellow-600/95 to-yellow-700/95 backdrop-blur-md rounded-2xl p-3 md:p-4 border-3 border-red-700 shadow-2xl">
+      <div className="w-full mx-auto mb-4 px-1">
+        <div className="bg-gradient-to-br from-yellow-600/95 to-yellow-700/95 backdrop-blur-md rounded-xl p-2 md:p-4 mb-4 border-2 md:border-3 border-red-700 shadow-2xl">
           
           {/* Khi MC đã chọn câu nhưng chưa bấm Bắt đầu */}
           {selectedQuestionForPreview && !currentQuestion && (
@@ -1587,7 +1587,7 @@ const confirmCloseMiniGameResult = () => {
               {/* Scrambled text - CHỈ HIỆN KHI TYPE = SCRAMBLE */}
               {currentQuestion.scrambledAnswer && (
                 <div className="bg-purple-50 rounded-xl p-3 md:p-4 border-2 border-purple-300 mb-3">
-                  <p className="text-purple-900 font-bold mb-2 text-center text-sm md:text-base">Xếp lại các chữ sau:</p>
+                  <p className="text-purple-900 font-bold mb-2 text-center text-xs md:text-base">Xếp lại các chữ sau:</p>
                   <div className="flex gap-1.5 md:gap-2 justify-center flex-wrap">
                     {currentQuestion.scrambledAnswer.split('').map((letter: string, index: number) => (
                       <div
@@ -1667,7 +1667,7 @@ const confirmCloseMiniGameResult = () => {
                   : 'bg-gradient-to-br from-gray-600/70 to-gray-700/70 border-gray-500 opacity-50'
               }`}
             >
-              <div className="grid grid-cols-[60px_1fr_auto_1fr_90px] items-center gap-2">
+              <div className="grid grid-cols-[45px_1fr_auto_1fr_80px] md:grid-cols-[60px_1fr_auto_1fr_90px] items-center gap-1 md:gap-2">
                 
                 {/* Label Q - CỐ ĐỊNH 60px */}
                 <span className={`px-3 py-1 rounded-full text-sm md:text-base font-black text-center ${
@@ -1707,7 +1707,7 @@ const confirmCloseMiniGameResult = () => {
                           handleClickQuestion(question, index);
                         }}
                         data-question={question.id}
-                        className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-md text-center text-red-900 font-black text-base md:text-lg border-2 border-red-700 focus:ring-2 focus:ring-yellow-400 uppercase"
+                        className="w-8 h-8 md:w-12 md:h-12 bg-white rounded-md text-center text-red-900 font-black text-base md:text-lg border-2 border-red-700 focus:ring-2 focus:ring-yellow-400 uppercase"
                         disabled={isSubmitted || timeLeft === 0}
                       />
                     ) : (
@@ -1790,7 +1790,7 @@ const confirmCloseMiniGameResult = () => {
                           handleClickQuestion(question, actualIndex);
                         }}
                         data-question={question.id}
-                        className="w-10 h-10 md:w-12 md:h-12 bg-white rounded-md text-center text-red-900 font-black text-base md:text-lg border-2 border-red-700 focus:ring-2 focus:ring-yellow-400 uppercase"
+                        className="w-8 h-8 md:w-12 md:h-12 bg-white rounded-md text-center text-red-900 font-black text-base md:text-lg border-2 border-red-700 focus:ring-2 focus:ring-yellow-400 uppercase"
                         disabled={isSubmitted || timeLeft === 0}
                       />
                     ) : (
@@ -1834,13 +1834,13 @@ const confirmCloseMiniGameResult = () => {
                     GỬI
                   </button>
                   ) : isSubmitted && myAnswerCorrect === true ? (
-                    <span className="bg-green-500 text-white px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap">✓ ĐÚNG</span>
+                    <span className="bg-green-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">✓</span>
                   ) : isSubmitted && myAnswerCorrect === false ? (
-                    <span className="bg-red-500 text-white px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap">✗ SAI</span>
+                    <span className="bg-red-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">✗</span>
                   ) : isRevealed ? (
-                    <span className="bg-blue-500 text-white px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap">ĐÃ HỎI</span>
+                    <span className="bg-blue-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">ĐÃ HỎI</span>
                   ) : (
-                    <span className="bg-gray-500 text-white px-2 py-1 rounded-full text-xs font-bold whitespace-nowrap">CHƯA MỞ</span>
+                    <span className="bg-gray-500 text-white px-1.5 py-0.5 md:px-2 md:py-1 rounded-full text-[10px] md:text-xs font-bold whitespace-nowrap">CHƯA MỞ</span>
                   )}
                 </div>
               </div>
@@ -1867,7 +1867,7 @@ const confirmCloseMiniGameResult = () => {
               return (
                 <div 
                   key={q.id}
-                  className={`w-12 h-12 md:w-16 md:h-16 rounded-full flex items-center justify-center font-black text-xl md:text-2xl border-4 shadow-lg transition-all ${
+                  className={`w-12 h-12 md:w-16 md:h-16 rounded-full text-base md:text-2xl flex items-center justify-center font-black text-xl md:text-2xl border-4 shadow-lg transition-all ${
                     isRevealed
                       ? 'bg-gradient-to-br from-yellow-400 to-yellow-600 border-red-700 text-red-900 animate-pulse-slow'
                       : 'bg-gradient-to-br from-gray-400 to-gray-500 border-gray-600 text-gray-700 opacity-60'
