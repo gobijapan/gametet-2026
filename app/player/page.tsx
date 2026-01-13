@@ -1603,7 +1603,7 @@ const confirmCloseMiniGameResult = () => {
               
               {/* Nội dung câu hỏi */}
               <div className="bg-white/95 rounded-xl p-3 md:p-4 border-2 border-red-700 mb-3">
-                <p className="text-red-900 text-base md:text-lg font-bold leading-relaxed text-center">
+                <p className="text-red-900 text-xl md:text-2xl font-bold leading-relaxed text-center">
                   {currentQuestion.content}
                 </p>
               </div>
