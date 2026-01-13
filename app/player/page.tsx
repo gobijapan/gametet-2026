@@ -1504,45 +1504,47 @@ const confirmCloseMiniGameResult = () => {
 
       {/* Sticky Header - CỐ ĐỊNH */}
       <div className="sticky top-0 z-30 bg-gradient-to-br from-red-900 to-red-700 pb-3">
-      {/* Huy hiệu tên player - GÓC TRÁI TRÊN */}
+      {/* Huy hiệu */}
       {user && (
-        <div className="absolute top-4 left-4 z-40">
-          <div className="bg-gradient-to-br from-blue-600 to-blue-800 backdrop-blur-md rounded-2xl px-4 py-3 border-3 border-yellow-400 shadow-2xl">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center border-3 border-white shadow-lg">
-                <span className="text-2xl">👤</span>
-              </div>
-              <div>
-                <p className="text-yellow-300 text-sm font-bold leading-tight">
-                  {user.name}
-                </p>
-                <p className="text-yellow-200 text-xs font-semibold">
-                  {user.maNV}
-                </p>
-              </div>
+        <div className="bg-gradient-to-br from-blue-600 to-blue-800 backdrop-blur-md rounded-2xl px-3 py-2 border-3 border-yellow-400 shadow-2xl">
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
+              <span className="text-xl">👤</span>
+            </div>
+            <div>
+              <p className="text-yellow-300 text-xs font-bold leading-tight">
+                {user.name}
+              </p>
+              <p className="text-yellow-200 text-[10px] font-semibold">
+                {user.maNV}
+              </p>
             </div>
           </div>
         </div>
       )}
 
       {/* Nút rung chuông */}
-      <div className="flex justify-center mb-4">
-        <button 
-          onClick={handleRingBell}
-          disabled={!canRingBell}
-          className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-yellow-500 shadow-2xl flex items-center justify-center transition-all ${
-            canRingBell 
-              ? 'bg-gradient-to-br from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 hover:scale-110 hover:rotate-12 cursor-pointer' 
-              : 'bg-gray-600 opacity-50 cursor-not-allowed'
-          }`}
-        >
-          <svg className="w-12 h-12 md:w-16 md:h-16 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
-            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-          </svg>
-        </button>
+      <div className="absolute left-1/2 -translate-x-1/2">
+          <button 
+            onClick={handleRingBell}
+            disabled={!canRingBell}
+            className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-yellow-500 shadow-2xl flex items-center justify-center transition-all ${
+              canRingBell 
+                ? 'bg-gradient-to-br from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 hover:scale-110 hover:rotate-12 cursor-pointer' 
+                : 'bg-gray-600 opacity-50 cursor-not-allowed'
+            }`}
+          >
+            <svg className="w-12 h-12 md:w-16 md:h-16 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+            </svg>
+          </button>
+        </div>
+        
+        <div className="w-[180px]"></div>
       </div>
 
       {/* Khung câu hỏi - LUÔN HIỆN, CĂN GIỮA */}
+      {!isHeaderCollapsed && (
       <div className="w-full mx-auto mb-4 px-1">
         <div className="bg-gradient-to-br from-yellow-600/95 to-yellow-700/95 backdrop-blur-md rounded-xl p-2 md:p-4 mb-4 border-2 md:border-3 border-red-700 shadow-2xl">
           
@@ -1665,6 +1667,7 @@ const confirmCloseMiniGameResult = () => {
           )}
         </div>
       </div>
+      )}
 
       {/* Nút Collapse/Expand - RANH GIỚI */}
       <div className="flex justify-center">
