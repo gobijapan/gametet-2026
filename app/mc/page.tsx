@@ -891,7 +891,7 @@ const handleViewThanTaiList = () => {
               <div className="flex gap-2 justify-center flex-wrap">
                 {Array.from(selectedQuestion.answer).map((letter: any, index: number) => {
                   const isKey = index === selectedQuestion.keyPosition - 1;
-                  const shouldReveal = isQuestionRevealed || (currentQuestion && timeLeft === 0);
+                  const shouldReveal = isQuestionRevealed;
                   
                   return (
                     <div 
