@@ -64,7 +64,6 @@ const [miniGameStats, setMiniGameStats] = useState({ coins: 0, golds: 0, bombs: 
 const [miniGameConfig, setMiniGameConfig] = useState<any>(null);
 const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 const [showResultCloseConfirm, setShowResultCloseConfirm] = useState(false);
-const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   // Handle Escape key globally
   useEffect(() => {
@@ -358,33 +357,6 @@ useEffect(() => {
 
   return () => unsubscribe();
 }, [user]);
-
-// Auto scroll khi MC bắt đầu câu hỏi
-useEffect(() => {
-  if (currentQuestion?.questionId) {
-    // Scroll sau khi countdown 3s
-    const scrollTimeout = setTimeout(() => {
-      const questionElement = document.getElementById(`question-${currentQuestion.questionId}`);
-      if (questionElement) {
-        questionElement.scrollIntoView({ 
-          behavior: 'smooth', 
-          block: 'start',
-          inline: 'nearest'
-        });
-        
-        // Focus vào input đầu tiên sau khi scroll
-        setTimeout(() => {
-          const question = questions.find(q => q.order === currentQuestion.questionId);
-          if (question && inputRefs.current[question.id]?.[0]) {
-            inputRefs.current[question.id][0]?.focus();
-          }
-        }, 500);
-      }
-    }, 3000); // Sau 3s countdown
-
-    return () => clearTimeout(scrollTimeout);
-  }
-}, [currentQuestion?.questionId, questions]);
 
 // Listen to Mini Game
 useEffect(() => {
@@ -1501,50 +1473,45 @@ const confirmCloseMiniGameResult = () => {
         </div>
       )}
 
-
-      {/* Sticky Header - CỐ ĐỊNH */}
-      <div className="sticky top-0 z-30 bg-gradient-to-br from-red-900 to-red-700 pb-3">
-      {/* Huy hiệu */}
+      {/* Huy hiệu tên player - GÓC TRÁI TRÊN */}
       {user && (
-        <div className="bg-gradient-to-br from-blue-600 to-blue-800 backdrop-blur-md rounded-2xl px-3 py-2 border-3 border-yellow-400 shadow-2xl">
-          <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center border-2 border-white shadow-lg">
-              <span className="text-xl">👤</span>
-            </div>
-            <div>
-              <p className="text-yellow-300 text-xs font-bold leading-tight">
-                {user.name}
-              </p>
-              <p className="text-yellow-200 text-[10px] font-semibold">
-                {user.maNV}
-              </p>
+        <div className="absolute top-4 left-4 z-40">
+          <div className="bg-gradient-to-br from-blue-600 to-blue-800 backdrop-blur-md rounded-2xl px-4 py-3 border-3 border-yellow-400 shadow-2xl">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-full flex items-center justify-center border-3 border-white shadow-lg">
+                <span className="text-2xl">👤</span>
+              </div>
+              <div>
+                <p className="text-yellow-300 text-sm font-bold leading-tight">
+                  {user.name}
+                </p>
+                <p className="text-yellow-200 text-xs font-semibold">
+                  {user.maNV}
+                </p>
+              </div>
             </div>
           </div>
         </div>
       )}
 
       {/* Nút rung chuông */}
-      <div className="absolute left-1/2 -translate-x-1/2">
-          <button 
-            onClick={handleRingBell}
-            disabled={!canRingBell}
-            className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-yellow-500 shadow-2xl flex items-center justify-center transition-all ${
-              canRingBell 
-                ? 'bg-gradient-to-br from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 hover:scale-110 hover:rotate-12 cursor-pointer' 
-                : 'bg-gray-600 opacity-50 cursor-not-allowed'
-            }`}
-          >
-            <svg className="w-12 h-12 md:w-16 md:h-16 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
-            </svg>
-          </button>
-        </div>
-        
-        <div className="w-[180px]"></div>
+      <div className="flex justify-center mb-4">
+        <button 
+          onClick={handleRingBell}
+          disabled={!canRingBell}
+          className={`w-20 h-20 md:w-24 md:h-24 rounded-full border-4 border-yellow-500 shadow-2xl flex items-center justify-center transition-all ${
+            canRingBell 
+              ? 'bg-gradient-to-br from-red-700 to-red-900 hover:from-red-800 hover:to-red-950 hover:scale-110 hover:rotate-12 cursor-pointer' 
+              : 'bg-gray-600 opacity-50 cursor-not-allowed'
+          }`}
+        >
+          <svg className="w-12 h-12 md:w-16 md:h-16 text-yellow-300" fill="currentColor" viewBox="0 0 20 20">
+            <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+          </svg>
+        </button>
       </div>
 
       {/* Khung câu hỏi - LUÔN HIỆN, CĂN GIỮA */}
-      {!isHeaderCollapsed && (
       <div className="w-full mx-auto mb-4 px-1">
         <div className="bg-gradient-to-br from-yellow-600/95 to-yellow-700/95 backdrop-blur-md rounded-xl p-2 md:p-4 mb-4 border-2 md:border-3 border-red-700 shadow-2xl">
           
@@ -1605,7 +1572,7 @@ const confirmCloseMiniGameResult = () => {
               
               {/* Nội dung câu hỏi */}
               <div className="bg-white/95 rounded-xl p-3 md:p-4 border-2 border-red-700 mb-3">
-                <p className="text-red-900 text-xl md:text-2xl font-bold leading-relaxed text-center">
+                <p className="text-red-900 text-base md:text-lg font-bold leading-relaxed text-center">
                   {currentQuestion.content}
                 </p>
               </div>
@@ -1667,28 +1634,6 @@ const confirmCloseMiniGameResult = () => {
           )}
         </div>
       </div>
-      )}
-
-      {/* Nút Collapse/Expand - RANH GIỚI */}
-      <div className="flex justify-center">
-        <button
-          onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
-          className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-yellow-300 font-bold px-4 py-2 rounded-full border-2 border-yellow-400 shadow-lg flex items-center gap-2 transform hover:scale-105 transition-all"
-        >
-          <svg 
-            className={`w-5 h-5 transition-transform ${isHeaderCollapsed ? 'rotate-180' : ''}`}
-            fill="none" 
-            stroke="currentColor" 
-            viewBox="0 0 24 24"
-          >
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-          </svg>
-          <span className="text-sm">
-            {isHeaderCollapsed ? 'Mở rộng' : 'Thu gọn'}
-          </span>
-        </button>
-      </div>
-    </div>
 
       {/* Danh sách 13 câu hỏi */}
       <div className="space-y-2 mb-4">
@@ -1708,8 +1653,7 @@ const confirmCloseMiniGameResult = () => {
           }
           
           return (
-            <div
-              id={`question-${question.order}`} 
+            <div 
               key={question.id}
               onClick={() => handleClickQuestion(question)}
               className={`backdrop-blur-md rounded-xl p-2.5 border-2 shadow-lg transition-all ${
