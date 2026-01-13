@@ -64,6 +64,7 @@ const [miniGameStats, setMiniGameStats] = useState({ coins: 0, golds: 0, bombs: 
 const [miniGameConfig, setMiniGameConfig] = useState<any>(null);
 const [showSkipConfirm, setShowSkipConfirm] = useState(false);
 const [showResultCloseConfirm, setShowResultCloseConfirm] = useState(false);
+const [isHeaderCollapsed, setIsHeaderCollapsed] = useState(false);
 
   // Handle Escape key globally
   useEffect(() => {
@@ -357,6 +358,33 @@ useEffect(() => {
 
   return () => unsubscribe();
 }, [user]);
+
+// Auto scroll khi MC bắt đầu câu hỏi
+useEffect(() => {
+  if (currentQuestion?.questionId) {
+    // Scroll sau khi countdown 3s
+    const scrollTimeout = setTimeout(() => {
+      const questionElement = document.getElementById(`question-${currentQuestion.questionId}`);
+      if (questionElement) {
+        questionElement.scrollIntoView({ 
+          behavior: 'smooth', 
+          block: 'start',
+          inline: 'nearest'
+        });
+        
+        // Focus vào input đầu tiên sau khi scroll
+        setTimeout(() => {
+          const question = questions.find(q => q.order === currentQuestion.questionId);
+          if (question && inputRefs.current[question.id]?.[0]) {
+            inputRefs.current[question.id][0]?.focus();
+          }
+        }, 500);
+      }
+    }, 3000); // Sau 3s countdown
+
+    return () => clearTimeout(scrollTimeout);
+  }
+}, [currentQuestion?.questionId, questions]);
 
 // Listen to Mini Game
 useEffect(() => {
@@ -1473,6 +1501,9 @@ const confirmCloseMiniGameResult = () => {
         </div>
       )}
 
+
+      {/* Sticky Header - CỐ ĐỊNH */}
+      <div className="sticky top-0 z-30 bg-gradient-to-br from-red-900 to-red-700 pb-3">
       {/* Huy hiệu tên player - GÓC TRÁI TRÊN */}
       {user && (
         <div className="absolute top-4 left-4 z-40">
@@ -1635,6 +1666,27 @@ const confirmCloseMiniGameResult = () => {
         </div>
       </div>
 
+      {/* Nút Collapse/Expand - RANH GIỚI */}
+      <div className="flex justify-center">
+        <button
+          onClick={() => setIsHeaderCollapsed(!isHeaderCollapsed)}
+          className="bg-gradient-to-r from-purple-600 to-purple-800 hover:from-purple-700 hover:to-purple-900 text-yellow-300 font-bold px-4 py-2 rounded-full border-2 border-yellow-400 shadow-lg flex items-center gap-2 transform hover:scale-105 transition-all"
+        >
+          <svg 
+            className={`w-5 h-5 transition-transform ${isHeaderCollapsed ? 'rotate-180' : ''}`}
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+          </svg>
+          <span className="text-sm">
+            {isHeaderCollapsed ? 'Mở rộng' : 'Thu gọn'}
+          </span>
+        </button>
+      </div>
+    </div>
+
       {/* Danh sách 13 câu hỏi */}
       <div className="space-y-2 mb-4">
         {questions.map((question) => {
@@ -1653,7 +1705,8 @@ const confirmCloseMiniGameResult = () => {
           }
           
           return (
-            <div 
+            <div
+              id={`question-${question.order}`} 
               key={question.id}
               onClick={() => handleClickQuestion(question)}
               className={`backdrop-blur-md rounded-xl p-2.5 border-2 shadow-lg transition-all ${
