@@ -11,7 +11,7 @@ export default function SettingsPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  
+
   // Form state
   const [miniGameType, setMiniGameType] = useState<'afterQuestion' | 'afterEveryXQuestions'>('afterQuestion');
   const [miniGameValue, setMiniGameValue] = useState<string>('5');
@@ -20,16 +20,18 @@ export default function SettingsPage() {
   const [defaultTimer, setDefaultTimer] = useState(30);
   const [thanTaiCount, setThanTaiCount] = useState(10);
   const [miniGameDuration, setMiniGameDuration] = useState(30);
-const [coinPoints, setCoinPoints] = useState(50);
-const [goldPoints, setGoldPoints] = useState(100);
-const [bombPoints, setBombPoints] = useState(-100);
-const [coinRate, setCoinRate] = useState(50);
-const [goldRate, setGoldRate] = useState(30);
-const [bombRate, setBombRate] = useState(20);
-const [coinSpeed, setCoinSpeed] = useState(3);
-const [goldSpeed, setGoldSpeed] = useState(5);
-const [bombSpeed, setBombSpeed] = useState(2);
-const [spawnInterval, setSpawnInterval] = useState(0.5);
+  const [coinPoints, setCoinPoints] = useState(50);
+  const [goldPoints, setGoldPoints] = useState(100);
+  const [bombPoints, setBombPoints] = useState(-100);
+  const [coinRate, setCoinRate] = useState(50);
+  const [goldRate, setGoldRate] = useState(30);
+  const [bombRate, setBombRate] = useState(20);
+  const [coinSpeed, setCoinSpeed] = useState(3);
+  const [goldSpeed, setGoldSpeed] = useState(5);
+  const [bombSpeed, setBombSpeed] = useState(2);
+  const [spawnInterval, setSpawnInterval] = useState(0.5);
+  const [topPlayerCount, setTopPlayerCount] = useState(5);
+  const [miniGamePlayerCount, setMiniGamePlayerCount] = useState(20);
 
   // Check authentication
   useEffect(() => {
@@ -41,7 +43,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
 
       const usersRef = ref(database, 'users');
       const snapshot = await get(usersRef);
-      
+
       if (snapshot.exists()) {
         let foundUser: any = null;
         snapshot.forEach((childSnapshot) => {
@@ -69,15 +71,15 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
     const loadSettings = async () => {
       const configRef = ref(database, 'config');
       const snapshot = await get(configRef);
-      
+
       if (snapshot.exists()) {
         const config = snapshot.val();
-        
+
         if (config.miniGameTrigger) {
           setMiniGameType(config.miniGameTrigger.type);
           setMiniGameValue(
-            Array.isArray(config.miniGameTrigger.value) 
-              ? config.miniGameTrigger.value.join(',') 
+            Array.isArray(config.miniGameTrigger.value)
+              ? config.miniGameTrigger.value.join(',')
               : config.miniGameTrigger.value.toString()
           );
         }
@@ -95,22 +97,30 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
           setBombSpeed(config.miniGame.bombSpeed || 2);
           setSpawnInterval(config.miniGame.spawnInterval || 0.5);
         }
-        
+
         if (config.thanTaiTrigger) {
           setThanTaiType(config.thanTaiTrigger.type);
           setThanTaiValue(
-            Array.isArray(config.thanTaiTrigger.value) 
-              ? config.thanTaiTrigger.value.join(',') 
+            Array.isArray(config.thanTaiTrigger.value)
+              ? config.thanTaiTrigger.value.join(',')
               : config.thanTaiTrigger.value.toString()
           );
         }
-        
+
         if (config.defaultTimer) {
           setDefaultTimer(config.defaultTimer);
         }
 
         if (config.thanTaiCount) {
           setThanTaiCount(config.thanTaiCount);
+        }
+
+        if (config.topPlayerCount) {
+          setTopPlayerCount(config.topPlayerCount);
+        }
+
+        if (config.miniGamePlayerCount) {
+          setMiniGamePlayerCount(config.miniGamePlayerCount);
         }
       }
     };
@@ -153,6 +163,8 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
           spawnInterval,
         },
         thanTaiCount,
+        topPlayerCount,
+        miniGamePlayerCount,
         defaultTimer,
       });
 
@@ -180,7 +192,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        
+
         {/* Mini Game Settings - FULL */}
         <div className="bg-white rounded-xl shadow-lg p-6 col-span-2">
           <h2 className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
@@ -188,11 +200,11 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
           </h2>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            
+
             {/* Cột 1: Điểm số */}
             <div className="space-y-4">
               <h3 className="font-bold text-gray-700 border-b pb-2">Điểm số</h3>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">💰 Coin</label>
                 <input
@@ -202,7 +214,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 font-bold text-center"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">🏆 Đỉnh vàng</label>
                 <input
@@ -212,7 +224,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 font-bold text-center"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">💣 Bom (âm)</label>
                 <input
@@ -227,7 +239,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
             {/* Cột 2: Tỷ lệ */}
             <div className="space-y-4">
               <h3 className="font-bold text-gray-700 border-b pb-2">Tỷ lệ xuất hiện (%)</h3>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">💰 Coin: {coinRate}%</label>
                 <input
@@ -239,7 +251,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">🏆 Đỉnh: {goldRate}%</label>
                 <input
@@ -251,7 +263,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">💣 Bom: {bombRate}%</label>
                 <input
@@ -263,7 +275,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full"
                 />
               </div>
-              
+
               <p className="text-xs text-gray-500">
                 Tổng: {coinRate + goldRate + bombRate}% (nên = 100%)
               </p>
@@ -272,7 +284,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
             {/* Cột 3: Tốc độ */}
             <div className="space-y-4">
               <h3 className="font-bold text-gray-700 border-b pb-2">Tốc độ & Thời gian</h3>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">⏱️ Thời gian chơi (giây)</label>
                 <input
@@ -284,7 +296,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full px-3 py-2 border-2 border-gray-300 rounded-lg focus:border-blue-500 font-bold text-center"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">🎯 Spawn mỗi (giây): {spawnInterval}s</label>
                 <input
@@ -300,7 +312,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   Càng nhỏ = Spawn càng nhiều (~{Math.floor(miniGameDuration / spawnInterval)} vật)
                 </p>
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">⚡ Tốc độ Coin (giây): {coinSpeed}s</label>
                 <input
@@ -313,7 +325,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">⚡ Tốc độ Đỉnh (giây): {goldSpeed}s</label>
                 <input
@@ -326,7 +338,7 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
                   className="w-full"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-gray-700 font-semibold mb-2 text-sm">⚡ Tốc độ Bom (giây): {bombSpeed}s</label>
                 <input
@@ -362,6 +374,45 @@ const [spawnInterval, setSpawnInterval] = useState(0.5);
             <p className="text-sm text-gray-500 mt-2 text-center">
               Random {thanTaiCount} người từ danh sách online
             </p>
+          </div>
+        </div>
+
+        {/* Leaderboard Settings */}
+        <div className="bg-white rounded-xl shadow-lg p-6">
+          <h2 className="text-xl font-black text-gray-800 mb-4 flex items-center gap-2">
+            🏆 Bảng Xếp Hạng
+          </h2>
+
+          <div className="space-y-4">
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">Số lượng Top Player</label>
+              <input
+                type="number"
+                min="1"
+                max="20"
+                value={topPlayerCount}
+                onChange={(e) => setTopPlayerCount(parseInt(e.target.value) || 5)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-blue-500 font-bold text-2xl text-center"
+              />
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Hiển thị Top {topPlayerCount} người nhanh nhất
+              </p>
+            </div>
+
+            <div>
+              <label className="block text-gray-700 font-bold mb-2">Số người hiển thị trên bảng xếp hạng Mini Game</label>
+              <input
+                type="number"
+                min="1"
+                max="100"
+                value={miniGamePlayerCount}
+                onChange={(e) => setMiniGamePlayerCount(parseInt(e.target.value) || 20)}
+                className="w-full px-4 py-3 border-2 border-gray-300 rounded-lg focus:outline-none focus:border-purple-500 font-bold text-2xl text-center"
+              />
+              <p className="text-sm text-gray-500 mt-2 text-center">
+                Hiển thị Top {miniGamePlayerCount} người trên bảng xếp hạng (Tất cả đều chơi được)
+              </p>
+            </div>
           </div>
         </div>
 

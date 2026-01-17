@@ -29,24 +29,25 @@ export default function MCPage() {
   const [revealedKeys, setRevealedKeys] = useState<{ [key: string]: string }>({});
   const [showSecretModal, setShowSecretModal] = useState(false);
   const [isRevealingSecret, setIsRevealingSecret] = useState(false);
-const [revealedSecretWord, setRevealedSecretWord] = useState('');
-const circleRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
-const [isThanTaiCountdown, setIsThanTaiCountdown] = useState(false);
-const [thanTaiCountdown, setThanTaiCountdown] = useState(5);
-const [thanTaiWinners, setThanTaiWinners] = useState<any[]>([]);
-const [showThanTaiListButton, setShowThanTaiListButton] = useState(false);
-const [isMusicPlaying, setIsMusicPlaying] = useState(true);
+  const [revealedSecretWord, setRevealedSecretWord] = useState('');
+  const circleRefs = useRef<{ [key: number]: HTMLButtonElement | null }>({});
+  const [isThanTaiCountdown, setIsThanTaiCountdown] = useState(false);
+  const [thanTaiCountdown, setThanTaiCountdown] = useState(5);
+  const [thanTaiWinners, setThanTaiWinners] = useState<any[]>([]);
+  const [showThanTaiListButton, setShowThanTaiListButton] = useState(false);
+  const [isMusicPlaying, setIsMusicPlaying] = useState(true);
 
-const [isMiniGameActive, setIsMiniGameActive] = useState(false);
-const [showMiniGameLeaderboard, setShowMiniGameLeaderboard] = useState(false);
-const [miniGameResults, setMiniGameResults] = useState<any[]>([]);
-const [showMiniGameMenu, setShowMiniGameMenu] = useState(false);
-const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
+  const [isMiniGameActive, setIsMiniGameActive] = useState(false);
+  const [showMiniGameLeaderboard, setShowMiniGameLeaderboard] = useState(false);
+  const [miniGameResults, setMiniGameResults] = useState<any[]>([]);
+  const [showMiniGameMenu, setShowMiniGameMenu] = useState(false);
+  const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
+  const [topPlayerCount, setTopPlayerCount] = useState(5);
 
 
   // Get question type label
   const getQuestionTypeLabel = (type: string) => {
-    switch(type) {
+    switch (type) {
       case 'crossword': return 'Ô chữ';
       case 'image': return 'Đuổi hình bắt chữ';
       case 'scramble': return 'Xáo chữ';
@@ -64,7 +65,7 @@ const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
 
       const usersRef = ref(database, 'users');
       const snapshot = await get(usersRef);
-      
+
       if (snapshot.exists()) {
         let foundUser: any = null;
         snapshot.forEach((childSnapshot) => {
@@ -86,6 +87,16 @@ const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
 
     return () => unsubscribe();
   }, [router]);
+
+  // Load config (topPlayerCount)
+  useEffect(() => {
+    const configRef = ref(database, 'config/topPlayerCount');
+    get(configRef).then((snapshot) => {
+      if (snapshot.exists()) {
+        setTopPlayerCount(snapshot.val());
+      }
+    });
+  }, []);
 
   // Listen to questions
   useEffect(() => {
@@ -127,7 +138,7 @@ const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
         const resultsData = snapshot.val();
         const revealed = new Set<number>();
         const keys: { [key: string]: string } = {};
-        
+
         questions.forEach(q => {
           if (resultsData[q.id]) {
             revealed.add(q.order);
@@ -136,7 +147,7 @@ const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
             }
           }
         });
-        
+
         setRevealedQuestions(revealed);
         setRevealedKeys(keys);
       }
@@ -180,73 +191,73 @@ const [showThanTaiMenu, setShowThanTaiMenu] = useState(false);
   }, []);
 
   // Listen to Mini Game results
-useEffect(() => {
-  const resultsRef = ref(database, 'game/miniGameResults');
-  const unsubscribe = onValue(resultsRef, async (snapshot) => {
-    if (snapshot.exists()) {
-      const resultsData = snapshot.val();
-      
-      // Get user info
-      const usersRef = ref(database, 'users');
-      const usersSnapshot = await get(usersRef);
-      const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
-      
-      const resultsArray = Object.keys(resultsData).map((msnv) => ({
-        msnv,
-        name: usersData[msnv]?.name || 'Unknown',
-        ...resultsData[msnv],
-      }));
-      
-      // Sort by score
-      resultsArray.sort((a, b) => b.score - a.score);
-      
-      setMiniGameResults(resultsArray);
-    } else {
-      setMiniGameResults([]);
+  useEffect(() => {
+    const resultsRef = ref(database, 'game/miniGameResults');
+    const unsubscribe = onValue(resultsRef, async (snapshot) => {
+      if (snapshot.exists()) {
+        const resultsData = snapshot.val();
+
+        // Get user info
+        const usersRef = ref(database, 'users');
+        const usersSnapshot = await get(usersRef);
+        const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+
+        const resultsArray = Object.keys(resultsData).map((msnv) => ({
+          msnv,
+          name: usersData[msnv]?.name || 'Unknown',
+          ...resultsData[msnv],
+        }));
+
+        // Sort by score
+        resultsArray.sort((a, b) => b.score - a.score);
+
+        setMiniGameResults(resultsArray);
+      } else {
+        setMiniGameResults([]);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Close menu when click outside
+  useEffect(() => {
+    const handleClickOutside = () => {
+      setShowMiniGameMenu(false);
+      setShowThanTaiMenu(false);
+    };
+
+    if (showMiniGameMenu || showThanTaiMenu) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
     }
-  });
-
-  return () => unsubscribe();
-}, []);
-
-// Close menu when click outside
-useEffect(() => {
-  const handleClickOutside = () => {
-    setShowMiniGameMenu(false);
-    setShowThanTaiMenu(false);
-  };
-
-  if (showMiniGameMenu || showThanTaiMenu) {
-    document.addEventListener('click', handleClickOutside);
-    return () => document.removeEventListener('click', handleClickOutside);
-  }
-}, [showMiniGameMenu, showThanTaiMenu]);
+  }, [showMiniGameMenu, showThanTaiMenu]);
 
   // Timer countdown
-useEffect(() => {
-  if (!currentQuestion?.timerEnd) return;
+  useEffect(() => {
+    if (!currentQuestion?.timerEnd) return;
 
-  const interval = setInterval(() => {
-    const now = Date.now();
-    const timeRemaining = Math.max(0, Math.floor((currentQuestion.timerEnd - now) / 1000));
-    setTimeLeft(timeRemaining);
+    const interval = setInterval(() => {
+      const now = Date.now();
+      const timeRemaining = Math.max(0, Math.floor((currentQuestion.timerEnd - now) / 1000));
+      setTimeLeft(timeRemaining);
 
-    if (timeRemaining === 0) {
-      clearInterval(interval);
-      // Tự động tính kết quả khi hết giờ
-      if (currentQuestion?.questionDbId) {
-        autoCalculateResults(currentQuestion.questionDbId);
+      if (timeRemaining === 0) {
+        clearInterval(interval);
+        // Tự động tính kết quả khi hết giờ
+        if (currentQuestion?.questionDbId) {
+          autoCalculateResults(currentQuestion.questionDbId);
+        }
       }
-    }
-  }, 100);
+    }, 100);
 
-  return () => clearInterval(interval);
-}, [currentQuestion?.timerEnd, currentQuestion?.questionDbId]);
+    return () => clearInterval(interval);
+  }, [currentQuestion?.timerEnd, currentQuestion?.questionDbId]);
 
   // Handle select question
   const handleSelectQuestion = async (question: any) => {
     setSelectedQuestion(question);
-    
+
     // Gửi signal cho Player
     await update(ref(database, 'game'), {
       selectedQuestion: {
@@ -255,9 +266,10 @@ useEffect(() => {
         answerLength: question.answer.length,
         keyPosition: question.keyPosition,
         type: question.type,
-      }
+      },
+      currentQuestion: null, // Clear current question to prevent leak on player side
     });
-    
+
     // Load kết quả nếu câu đã hỏi
     if (revealedQuestions.has(question.order)) {
       const resultRef = ref(database, `results/${question.id}`);
@@ -276,24 +288,25 @@ useEffect(() => {
     if (!selectedQuestion) return;
 
     setIsCountingDown(true);
-    
-    await update(ref(database, 'game'), {
-  countdown: {
-    isActive: true,
-    startTime: Date.now(),
-  },
-});
+
+    // Start countdown immediately without waiting for server ack
+    update(ref(database, 'game'), {
+      countdown: {
+        isActive: true, // Only update status/startTime
+        startTime: Date.now(),
+      },
+    });
 
     for (let i = 3; i > 0; i--) {
       setCountdown(i);
       await new Promise(resolve => setTimeout(resolve, 1000));
     }
-    
+
     setIsCountingDown(false);
 
     const startTimestamp = Date.now();
     const timerEnd = startTimestamp + (selectedQuestion.timer || 30) * 1000;
-    
+
     await update(ref(database, 'game'), {
       countdown: {
         isActive: false,
@@ -314,155 +327,155 @@ useEffect(() => {
   };
 
   // Handle Mini Game
-const handleMiniGame = async () => {
-  // Reset kết quả cũ
-  await remove(ref(database, 'game/miniGameResults'));
-  
-  // Kích hoạt mới
-  await set(ref(database, 'game/miniGame'), {
-    active: true,
-    timestamp: Date.now(),
-    round: Date.now(), // ← Dùng timestamp làm round ID
-  });
-  
-  setIsMiniGameActive(true);
-  setMiniGameResults([]); // Reset bảng xếp hạng
-  
-  toast.success('Đã kích hoạt Mini Game!');
-};
+  const handleMiniGame = async () => {
+    // Reset kết quả cũ
+    await remove(ref(database, 'game/miniGameResults'));
 
-const handleViewLeaderboard = () => {
-  setShowMiniGameLeaderboard(true);
-};
+    // Kích hoạt mới
+    await set(ref(database, 'game/miniGame'), {
+      active: true,
+      timestamp: Date.now(),
+      round: Date.now(), // ← Dùng timestamp làm round ID
+    });
 
-const handleCloseMiniGame = async () => {
-  setShowMiniGameLeaderboard(false);
-  
-  // Đóng Mini Game cho tất cả
-  await update(ref(database, 'game/miniGame'), {
-    active: false,
-  });
-  
-  setIsMiniGameActive(false);
-  
-  toast.success('Đã đóng Mini Game!');
-};
+    setIsMiniGameActive(true);
+    setMiniGameResults([]); // Reset bảng xếp hạng
+
+    toast.success('Đã kích hoạt Mini Game!');
+  };
+
+  const handleViewLeaderboard = () => {
+    setShowMiniGameLeaderboard(true);
+  };
+
+  const handleCloseMiniGame = async () => {
+    setShowMiniGameLeaderboard(false);
+
+    // Đóng Mini Game cho tất cả
+    await update(ref(database, 'game/miniGame'), {
+      active: false,
+    });
+
+    setIsMiniGameActive(false);
+
+    toast.success('Đã đóng Mini Game!');
+  };
 
   // Handle show top 5
   const handleShowTop5 = async () => {
-  if (!selectedQuestion) return;
+    if (!selectedQuestion) return;
 
-  // Nếu câu đã hỏi rồi, CHỈ LẤY KẾT QUẢ ĐÃ LƯU
-  if (isQuestionRevealed) {
-    const resultRef = ref(database, `results/${selectedQuestion.id}`);
-    const snapshot = await get(resultRef);
-    if (snapshot.exists()) {
-      const resultData = snapshot.val();
-      setTop5Results(resultData.top5 || []);
-      setShowTop5Modal(true);
+    // Nếu câu đã hỏi rồi, CHỈ LẤY KẾT QUẢ ĐÃ LƯU
+    if (isQuestionRevealed) {
+      const resultRef = ref(database, `results/${selectedQuestion.id}`);
+      const snapshot = await get(resultRef);
+      if (snapshot.exists()) {
+        const resultData = snapshot.val();
+        setTop5Results(resultData.top5 || []);
+        setShowTop5Modal(true);
+      }
+      return;
     }
-    return;
-  }
 
-  // Nếu câu VỪA HẾT GIỜ, TÍNH MỚI
-  const answersRef = ref(database, `answers/${selectedQuestion.id}`);
-  const snapshot = await get(answersRef);
+    // Nếu câu VỪA HẾT GIỜ, TÍNH MỚI
+    const answersRef = ref(database, `answers/${selectedQuestion.id}`);
+    const snapshot = await get(answersRef);
 
-  let top5: any[] = [];
+    let top5: any[] = [];
 
-  if (snapshot.exists()) {
-    const answersData = snapshot.val();
-    
-    const usersRef = ref(database, 'users');
-    const usersSnapshot = await get(usersRef);
-    const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+    if (snapshot.exists()) {
+      const answersData = snapshot.val();
 
-    const answersArray = Object.keys(answersData).map((key) => ({
-      maNV: key,
-      name: usersData[key]?.name || 'Unknown',
-      ...answersData[key],
-    }));
+      const usersRef = ref(database, 'users');
+      const usersSnapshot = await get(usersRef);
+      const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
 
-    const validAnswers = answersArray.filter(
-      (a) => a.timestamp >= (currentQuestion?.startTimestamp || 0)
-    );
+      const answersArray = Object.keys(answersData).map((key) => ({
+        maNV: key,
+        name: usersData[key]?.name || 'Unknown',
+        ...answersData[key],
+      }));
 
-    const correctAnswers = validAnswers.filter(
-      (a) => a.answer.toUpperCase() === selectedQuestion.answer.toUpperCase()
-    );
+      const validAnswers = answersArray.filter(
+        (a) => a.timestamp >= (currentQuestion?.startTimestamp || 0)
+      );
 
-    correctAnswers.sort((a, b) => a.timestamp - b.timestamp);
+      const correctAnswers = validAnswers.filter(
+        (a) => a.answer.toUpperCase() === selectedQuestion.answer.toUpperCase()
+      );
 
-    top5 = correctAnswers.slice(0, 5).map((a, index) => ({
-      ...a,
-      rank: index + 1,
-      timeInSeconds: ((a.timestamp - (currentQuestion?.startTimestamp || 0)) / 1000).toFixed(1),
-    }));
-  }
+      correctAnswers.sort((a, b) => a.timestamp - b.timestamp);
 
-  await set(ref(database, `results/${selectedQuestion.id}`), {
-    correctAnswer: selectedQuestion.answer,
-    keyLetter: selectedQuestion.answer[selectedQuestion.keyPosition - 1],
-    keyPosition: selectedQuestion.keyPosition,
-    top5,
-    timestamp: Date.now(),
-  });
+      top5 = correctAnswers.slice(0, topPlayerCount).map((a, index) => ({
+        ...a,
+        rank: index + 1,
+        timeInSeconds: ((a.timestamp - (currentQuestion?.startTimestamp || 0)) / 1000).toFixed(2),
+      }));
+    }
 
-  setRevealedQuestions(prev => new Set([...prev, selectedQuestion.order]));
-  
-  setTop5Results(top5);
-  setShowTop5Modal(true);
-};
-
-  // Auto calculate results when time is up
-const autoCalculateResults = async (questionId: string) => {
-  const question = questions.find(q => q.id === questionId);
-  if (!question) return;
-
-  const answersRef = ref(database, `answers/${questionId}`);
-  const snapshot = await get(answersRef);
-
-  if (snapshot.exists()) {
-    const answersData = snapshot.val();
-    
-    const usersRef = ref(database, 'users');
-    const usersSnapshot = await get(usersRef);
-    const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
-
-    const answersArray = Object.keys(answersData).map((key) => ({
-      maNV: key,
-      name: usersData[key]?.name || 'Unknown',
-      ...answersData[key],
-    }));
-
-    const validAnswers = answersArray.filter(
-      (a) => a.timestamp >= (currentQuestion?.startTimestamp || 0)
-    );
-
-    const correctAnswers = validAnswers.filter(
-      (a) => a.answer.toUpperCase() === question.answer.toUpperCase()
-    );
-
-    correctAnswers.sort((a, b) => a.timestamp - b.timestamp);
-
-    const top5 = correctAnswers.slice(0, 5).map((a, index) => ({
-      ...a,
-      rank: index + 1,
-      timeInSeconds: ((a.timestamp - (currentQuestion?.startTimestamp || 0)) / 1000).toFixed(2),
-    }));
-
-    // Lưu kết quả ngay
-    await set(ref(database, `results/${questionId}`), {
-      correctAnswer: question.answer,
-      keyLetter: question.answer[question.keyPosition - 1],
-      keyPosition: question.keyPosition,
+    await set(ref(database, `results/${selectedQuestion.id}`), {
+      correctAnswer: selectedQuestion.answer,
+      keyLetter: selectedQuestion.answer[selectedQuestion.keyPosition - 1],
+      keyPosition: selectedQuestion.keyPosition,
       top5,
       timestamp: Date.now(),
     });
 
-    setRevealedQuestions(prev => new Set([...prev, question.order]));
-  }
-};
+    setRevealedQuestions(prev => new Set([...prev, selectedQuestion.order]));
+
+    setTop5Results(top5);
+    setShowTop5Modal(true);
+  };
+
+  // Auto calculate results when time is up
+  const autoCalculateResults = async (questionId: string) => {
+    const question = questions.find(q => q.id === questionId);
+    if (!question) return;
+
+    const answersRef = ref(database, `answers/${questionId}`);
+    const snapshot = await get(answersRef);
+
+    if (snapshot.exists()) {
+      const answersData = snapshot.val();
+
+      const usersRef = ref(database, 'users');
+      const usersSnapshot = await get(usersRef);
+      const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+
+      const answersArray = Object.keys(answersData).map((key) => ({
+        maNV: key,
+        name: usersData[key]?.name || 'Unknown',
+        ...answersData[key],
+      }));
+
+      const validAnswers = answersArray.filter(
+        (a) => a.timestamp >= (currentQuestion?.startTimestamp || 0)
+      );
+
+      const correctAnswers = validAnswers.filter(
+        (a) => a.answer.toUpperCase() === question.answer.toUpperCase()
+      );
+
+      correctAnswers.sort((a, b) => a.timestamp - b.timestamp);
+
+      const top5 = correctAnswers.slice(0, topPlayerCount).map((a, index) => ({
+        ...a,
+        rank: index + 1,
+        timeInSeconds: ((a.timestamp - (currentQuestion?.startTimestamp || 0)) / 1000).toFixed(2),
+      }));
+
+      // Lưu kết quả ngay
+      await set(ref(database, `results/${questionId}`), {
+        correctAnswer: question.answer,
+        keyLetter: question.answer[question.keyPosition - 1],
+        keyPosition: question.keyPosition,
+        top5,
+        timestamp: Date.now(),
+      });
+
+      setRevealedQuestions(prev => new Set([...prev, question.order]));
+    }
+  };
 
   // Handle close top 5
   const handleCloseTop5 = async () => {
@@ -473,210 +486,210 @@ const autoCalculateResults = async (questionId: string) => {
 
   // Handle reveal secret
   const handleRevealSecret = () => {
-  setShowSecretModal(true);
-};
+    setShowSecretModal(true);
+  };
 
-const confirmRevealSecret = async () => {
-  setShowSecretModal(false);
-  
-  const configRef = ref(database, 'config');
-  const configSnapshot = await get(configRef);
-  
-  if (!configSnapshot.exists() || !configSnapshot.val().keyMapping) {
-    toast.error('Chưa thiết lập Ô Bí Ẩn!');
-    return;
-  }
-  
-  const config = configSnapshot.val();
-  
-  // Tính toán vị trí các vòng tròn
-  const keysData = Object.keys(config.keyMapping).map(position => {
-    const keyInfo = config.keyMapping[position];
-    const questionOrder = keyInfo.fromQuestion;
-    const circleElement = circleRefs.current[questionOrder];
-    
-    let startX = window.innerWidth / 2;
-    let startY = 100;
-    
-    if (circleElement) {
-      const rect = circleElement.getBoundingClientRect();
-      startX = rect.left + rect.width / 2;
-      startY = rect.top + rect.height / 2;
+  const confirmRevealSecret = async () => {
+    setShowSecretModal(false);
+
+    const configRef = ref(database, 'config');
+    const configSnapshot = await get(configRef);
+
+    if (!configSnapshot.exists() || !configSnapshot.val().keyMapping) {
+      toast.error('Chưa thiết lập Ô Bí Ẩn!');
+      return;
     }
-    
-    return {
-      position: parseInt(position),
-      letter: keyInfo.letter,
-      fromQuestion: questionOrder,
-      startX,
-      startY,
-    };
-  });
-  
-  // Bắt đầu animation
-  setIsRevealingSecret(true);
-  setRevealedSecretWord(config.secretWord);
-  
-  // Lưu data để animation sử dụng
-  (window as any).__secretKeysData = keysData;
-  
-  // Gửi signal cho Player
-  await update(ref(database, 'game'), {
-    secretRevealed: true,
-    secretWord: config.secretWord,
-    keyMapping: config.keyMapping,
-    revealTimestamp: Date.now(),
-  });
-  
-  // Confetti sau 4.5s
-  setTimeout(() => {
-    confetti({
-      particleCount: 300,
-      spread: 120,
-      origin: { y: 0.6 },
-      colors: ['#FFD700', '#FFA500', '#FF6347', '#DC143C'],
-      ticks: 200,
+
+    const config = configSnapshot.val();
+
+    // Tính toán vị trí các vòng tròn
+    const keysData = Object.keys(config.keyMapping).map(position => {
+      const keyInfo = config.keyMapping[position];
+      const questionOrder = keyInfo.fromQuestion;
+      const circleElement = circleRefs.current[questionOrder];
+
+      let startX = window.innerWidth / 2;
+      let startY = 100;
+
+      if (circleElement) {
+        const rect = circleElement.getBoundingClientRect();
+        startX = rect.left + rect.width / 2;
+        startY = rect.top + rect.height / 2;
+      }
+
+      return {
+        position: parseInt(position),
+        letter: keyInfo.letter,
+        fromQuestion: questionOrder,
+        startX,
+        startY,
+      };
     });
-    
+
+    // Bắt đầu animation
+    setIsRevealingSecret(true);
+    setRevealedSecretWord(config.secretWord);
+
+    // Lưu data để animation sử dụng
+    (window as any).__secretKeysData = keysData;
+
+    // Gửi signal cho Player
+    await update(ref(database, 'game'), {
+      secretRevealed: true,
+      secretWord: config.secretWord,
+      keyMapping: config.keyMapping,
+      revealTimestamp: Date.now(),
+    });
+
+    // Confetti sau 4.5s
     setTimeout(() => {
       confetti({
-        particleCount: 200,
-        angle: 60,
-        spread: 55,
-        origin: { x: 0 },
-        colors: ['#FFD700', '#FFA500'],
+        particleCount: 300,
+        spread: 120,
+        origin: { y: 0.6 },
+        colors: ['#FFD700', '#FFA500', '#FF6347', '#DC143C'],
+        ticks: 200,
       });
-      confetti({
-        particleCount: 200,
-        angle: 120,
-        spread: 55,
-        origin: { x: 1 },
-        colors: ['#FF6347', '#DC143C'],
-      });
-    }, 500);
-  }, 4500);
-};
 
-const handleCloseSecretAnimation = async () => {
-  setIsRevealingSecret(false);
-  
-  await update(ref(database, 'game'), {
-    secretRevealed: false,
-  });
-};
+      setTimeout(() => {
+        confetti({
+          particleCount: 200,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0 },
+          colors: ['#FFD700', '#FFA500'],
+        });
+        confetti({
+          particleCount: 200,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1 },
+          colors: ['#FF6347', '#DC143C'],
+        });
+      }, 500);
+    }, 4500);
+  };
 
-// Handle Thần Tài
-const handleThanTai = async () => {
-  // Bắt đầu đếm ngược ngay (không cần modal)
-  setIsThanTaiCountdown(true);
-  setThanTaiCountdown(3);
-  
-  for (let i = 3; i > 0; i--) {
-    setThanTaiCountdown(i);
-    await new Promise(resolve => setTimeout(resolve, 1000));
-  }
-  
-  setIsThanTaiCountdown(false);
-  
-  // Random và gửi signal
-  await triggerThanTai();
-};
+  const handleCloseSecretAnimation = async () => {
+    setIsRevealingSecret(false);
 
-const triggerThanTai = async () => {
-  // Lấy cài đặt
-  console.log('Triggering Thần Tài...');
-  const configRef = ref(database, 'config/thanTaiCount');
-  const configSnapshot = await get(configRef);
-  const thanTaiCount = configSnapshot.exists() ? configSnapshot.val() : 10;
-  
-  console.log('Thần Tài count:', thanTaiCount);
-  // Lấy danh sách online
-  const onlineRef = ref(database, 'online');
-  const onlineSnapshot = await get(onlineRef);
-  
-  if (!onlineSnapshot.exists()) {
-    console.log('Không có ai online!');
-    toast.error('Không có ai online!');
-    return;
-  }
-  
-  const onlineUsers = Object.keys(onlineSnapshot.val());
-  console.log('Online users:', onlineUsers);
-  
-  const finalCount = Math.min(thanTaiCount, onlineUsers.length);
-  
-  if (onlineUsers.length === 0) {
-  toast.error('Không có ai online!');
-  return;
-}
-console.log('Final count:', finalCount);
-  
-  // Random
-  const shuffled = onlineUsers.sort(() => 0.5 - Math.random());
-  const winners = shuffled.slice(0, finalCount);
-  
-  // Lấy thông tin
-  const usersRef = ref(database, 'users');
-  const usersSnapshot = await get(usersRef);
-  const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
-  
-  const winnersData = winners.map(msnv => ({
-    msnv,
-    name: usersData[msnv]?.name || 'Unknown',
-  }));
-  
-  setThanTaiWinners(winnersData);
+    await update(ref(database, 'game'), {
+      secretRevealed: false,
+    });
+  };
 
-  const audio = new Audio('/than-tai-music.mp3');
-audio.volume = 0.8; // 80% volume
-audio.play();
+  // Handle Thần Tài
+  const handleThanTai = async () => {
+    // Bắt đầu đếm ngược ngay (không cần modal)
+    setIsThanTaiCountdown(true);
+    setThanTaiCountdown(3);
 
-// Lưu để dừng sau
-(window as any).__thanTaiAudio = audio;
-  
-  // Gửi signal
-  const winnersObj: any = {};
-  winners.forEach(msnv => {
-    winnersObj[msnv] = true;
-  });
+    for (let i = 3; i > 0; i--) {
+      setThanTaiCountdown(i);
+      await new Promise(resolve => setTimeout(resolve, 1000));
+    }
 
-  console.log('Winners:', winnersData);
-  console.log('Sending signal to Firebase...');
-  
-  await set(ref(database, 'game/thanTai'), {
-    active: true,
-    winners: winnersObj,
-    count: finalCount,
-    timestamp: Date.now(),
-  });
-  console.log('Signal sent!');
-  console.log('Data saved to Firebase!');
-  
-  toast.success(`Đã chọn ${thanTaiCount} người!`);
-};
+    setIsThanTaiCountdown(false);
 
-const handleCancelThanTai = () => {
-  setIsThanTaiCountdown(false);
-};
+    // Random và gửi signal
+    await triggerThanTai();
+  };
 
-const handleCloseThanTai = async () => {
-  setShowThanTaiListButton(true);
-  
-  // Dừng nhạc
-  if ((window as any).__thanTaiAudio) {
-    (window as any).__thanTaiAudio.pause();
-    (window as any).__thanTaiAudio.currentTime = 0;
-  }
-  
-  // XÓA FLAG active để Player mới vào không thấy
-  await update(ref(database, 'game/thanTai'), {
-    active: false,
-  });
-};
+  const triggerThanTai = async () => {
+    // Lấy cài đặt
+    console.log('Triggering Thần Tài...');
+    const configRef = ref(database, 'config/thanTaiCount');
+    const configSnapshot = await get(configRef);
+    const thanTaiCount = configSnapshot.exists() ? configSnapshot.val() : 10;
 
-const handleViewThanTaiList = () => {
-  setShowThanTaiListButton(false); // Ẩn nút "Xem lại" → Modal hiện lại
-};
+    console.log('Thần Tài count:', thanTaiCount);
+    // Lấy danh sách online
+    const onlineRef = ref(database, 'online');
+    const onlineSnapshot = await get(onlineRef);
+
+    if (!onlineSnapshot.exists()) {
+      console.log('Không có ai online!');
+      toast.error('Không có ai online!');
+      return;
+    }
+
+    const onlineUsers = Object.keys(onlineSnapshot.val());
+    console.log('Online users:', onlineUsers);
+
+    const finalCount = Math.min(thanTaiCount, onlineUsers.length);
+
+    if (onlineUsers.length === 0) {
+      toast.error('Không có ai online!');
+      return;
+    }
+    console.log('Final count:', finalCount);
+
+    // Random
+    const shuffled = onlineUsers.sort(() => 0.5 - Math.random());
+    const winners = shuffled.slice(0, finalCount);
+
+    // Lấy thông tin
+    const usersRef = ref(database, 'users');
+    const usersSnapshot = await get(usersRef);
+    const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
+
+    const winnersData = winners.map(msnv => ({
+      msnv,
+      name: usersData[msnv]?.name || 'Unknown',
+    }));
+
+    setThanTaiWinners(winnersData);
+
+    const audio = new Audio('/than-tai-music.mp3');
+    audio.volume = 0.8; // 80% volume
+    audio.play();
+
+    // Lưu để dừng sau
+    (window as any).__thanTaiAudio = audio;
+
+    // Gửi signal
+    const winnersObj: any = {};
+    winners.forEach(msnv => {
+      winnersObj[msnv] = true;
+    });
+
+    console.log('Winners:', winnersData);
+    console.log('Sending signal to Firebase...');
+
+    await set(ref(database, 'game/thanTai'), {
+      active: true,
+      winners: winnersObj,
+      count: finalCount,
+      timestamp: Date.now(),
+    });
+    console.log('Signal sent!');
+    console.log('Data saved to Firebase!');
+
+    toast.success(`Đã chọn ${thanTaiCount} người!`);
+  };
+
+  const handleCancelThanTai = () => {
+    setIsThanTaiCountdown(false);
+  };
+
+  const handleCloseThanTai = async () => {
+    setShowThanTaiListButton(true);
+
+    // Dừng nhạc
+    if ((window as any).__thanTaiAudio) {
+      (window as any).__thanTaiAudio.pause();
+      (window as any).__thanTaiAudio.currentTime = 0;
+    }
+
+    // XÓA FLAG active để Player mới vào không thấy
+    await update(ref(database, 'game/thanTai'), {
+      active: false,
+    });
+  };
+
+  const handleViewThanTaiList = () => {
+    setShowThanTaiListButton(false); // Ẩn nút "Xem lại" → Modal hiện lại
+  };
 
   // Handle toggle answered
   const handleToggleAnswered = async (maNV: string, currentValue: boolean) => {
@@ -699,7 +712,7 @@ const handleViewThanTaiList = () => {
 
   return (
     <div className="min-h-screen p-4">
-      
+
       {/* Countdown overlay */}
       {isCountingDown && (
         <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50">
@@ -747,17 +760,17 @@ const handleViewThanTaiList = () => {
             >
               🎯 ĐÁP ÁN BÍ ẨN 🎯
             </motion.h1>
-            
+
             {/* Các chữ bay từ vòng tròn xuống */}
             <div className="relative mb-8" style={{ minHeight: '120px' }}>
               <div className="flex gap-2 md:gap-3 justify-center">
                 {(() => {
                   const keysData = (window as any).__secretKeysData || [];
                   const centerY = window.innerHeight / 2;
-                  
+
                   return keysData.map((keyData: any, index: number) => {
                     const targetX = (index - keysData.length / 2) * 80 + window.innerWidth / 2;
-                    
+
                     return (
                       <motion.div
                         key={keyData.position}
@@ -793,7 +806,7 @@ const handleViewThanTaiList = () => {
                 })()}
               </div>
             </div>
-            
+
             <motion.p
               initial={{ opacity: 0, scale: 0.5 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -819,7 +832,7 @@ const handleViewThanTaiList = () => {
         )}
       </AnimatePresence>
 
-      
+
 
       {/* Question circles - TRÊN CÙNG, TỰ ĐỘNG FIT */}
       <div className="mb-4">
@@ -830,27 +843,29 @@ const handleViewThanTaiList = () => {
               const isCurrent = currentQuestion?.questionId === q.order;
               const isRevealed = revealedQuestions.has(q.order);
               const keyLetter = revealedKeys[q.id];
-              
+
               return (
                 <button
                   key={q.id}
                   ref={(el) => { circleRefs.current[q.order] = el; }}
                   onClick={() => handleSelectQuestion(q)}
+                  disabled={isCountingDown || currentQuestion} // Lock if busy
                   style={{
                     flex: '1 1 0',
                     maxWidth: '112px',
                     minWidth: '40px',
-                    aspectRatio: '1/1'
+                    aspectRatio: '1/1',
+                    opacity: (isCountingDown || currentQuestion) && !isSelected ? 0.3 : 1,
+                    cursor: (isCountingDown || currentQuestion) ? 'not-allowed' : 'pointer',
                   }}
-                  className={`rounded-full border-4 font-black text-2xl md:text-3xl shadow-lg transition-all ${
-                    isSelected
-                      ? 'bg-yellow-400 border-yellow-600 text-red-900 ring-4 ring-yellow-300 scale-110'
-                      : isCurrent
+                  className={`rounded-full border-4 font-black text-2xl md:text-3xl shadow-lg transition-all ${isSelected
+                    ? 'bg-yellow-400 border-yellow-600 text-red-900 ring-4 ring-yellow-300 scale-110'
+                    : isCurrent
                       ? 'bg-green-500 border-green-700 text-white scale-105'
                       : isRevealed
-                      ? 'bg-blue-400 border-blue-600 text-white'
-                      : 'bg-gray-400 border-gray-600 text-gray-700 hover:scale-105'
-                  }`}
+                        ? 'bg-blue-400 border-blue-600 text-white'
+                        : 'bg-gray-400 border-gray-600 text-gray-700 hover:scale-105'
+                    }`}
                 >
                   {isRevealed ? keyLetter : q.order}
                 </button>
@@ -864,7 +879,7 @@ const handleViewThanTaiList = () => {
       {selectedQuestion && (
         <div className="max-w-5xl mx-auto">
           <div className="bg-gradient-to-br from-yellow-400/95 to-yellow-600/95 backdrop-blur-md rounded-2xl p-6 border-4 border-red-700 shadow-2xl">
-            
+
             {/* Question info - CĂN GIỮA */}
             <div className="text-center mb-4">
               <h3 className="text-3xl md:text-4xl font-black text-white" style={{
@@ -876,11 +891,10 @@ const handleViewThanTaiList = () => {
                 {getQuestionTypeLabel(selectedQuestion.type)} • {selectedQuestion.answer.length} chữ cái
               </p>
               {currentQuestion?.questionId === selectedQuestion.order && (
-                <div className={`inline-block font-black text-4xl md:text-5xl px-6 py-3 rounded-full border-4 mt-3 ${
-                  timeLeft <= 5
-                    ? 'bg-red-800 text-yellow-400 border-yellow-400 animate-pulse'
-                    : 'bg-red-800 text-yellow-400 border-yellow-400'
-                }`}>
+                <div className={`inline-block font-black text-4xl md:text-5xl px-6 py-3 rounded-full border-4 mt-3 ${timeLeft <= 5
+                  ? 'bg-red-800 text-yellow-400 border-yellow-400 animate-pulse'
+                  : 'bg-red-800 text-yellow-400 border-yellow-400'
+                  }`}>
                   {timeLeft}s
                 </div>
               )}
@@ -891,18 +905,16 @@ const handleViewThanTaiList = () => {
               <div className="flex gap-2 justify-center flex-wrap">
                 {Array.from(selectedQuestion.answer).map((letter: any, index: number) => {
                   const isKey = index === selectedQuestion.keyPosition - 1;
-                  const shouldReveal = isQuestionRevealed;
-                  
+                  const shouldReveal = isQuestionRevealed || (currentQuestion && timeLeft === 0);
                   return (
-                    <div 
+                    <div
                       key={index}
-                      className={`w-12 h-12 md:w-14 md:h-14 rounded-md flex items-center justify-center font-black text-xl border-3 ${
-                        isKey
-                          ? 'bg-yellow-400 border-yellow-600 text-red-900 ring-2 ring-yellow-500'
-                          : shouldReveal
+                      className={`w-12 h-12 md:w-14 md:h-14 rounded-md flex items-center justify-center font-black text-xl border-3 ${isKey
+                        ? 'bg-yellow-400 border-yellow-600 text-red-900 ring-2 ring-yellow-500'
+                        : shouldReveal
                           ? 'bg-white border-red-700 text-red-900'
                           : 'bg-gray-200 border-gray-400 text-gray-400'
-                      }`}
+                        }`}
                     >
                       {shouldReveal ? letter : null}
                     </div>
@@ -915,7 +927,7 @@ const handleViewThanTaiList = () => {
             {(currentQuestion?.questionId === selectedQuestion.order || isQuestionRevealed) && (
               <>
                 <div className="bg-white/95 rounded-xl p-4 mb-4 border-2 border-red-700">
-                  <p className="text-red-900 text-lg md:text-xl font-bold leading-relaxed">
+                  <p className="text-red-900 text-lg md:text-xl font-bold leading-relaxed text-center">
                     {selectedQuestion.content}
                   </p>
                 </div>
@@ -964,7 +976,7 @@ const handleViewThanTaiList = () => {
                   onClick={handleShowTop5}
                   className="bg-gradient-to-br from-blue-500 to-blue-700 hover:from-blue-600 hover:to-blue-800 text-white font-black text-lg px-8 py-2.5 rounded-xl border-3 border-blue-900 shadow-xl transform hover:scale-105 transition-all"
                 >
-                  {isQuestionRevealed ? 'XEM LẠI TOP 5' : 'XEM TOP 5'}
+                  {isQuestionRevealed ? 'TOP PLAYER' : 'TOP PLAYER'}
                 </button>
               </div>
             )}
@@ -995,12 +1007,12 @@ const handleViewThanTaiList = () => {
           >
             🎮
           </button>
-          
+
           {/* Tooltip */}
           <span className="absolute left-24 top-1/2 -translate-y-1/2 bg-black text-white px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-sm font-bold pointer-events-none">
             Mini game
           </span>
-          
+
           {/* Menu con */}
           {showMiniGameMenu && (
             <div className="absolute left-24 top-0 bg-gradient-to-br from-blue-700 to-blue-900 rounded-xl shadow-2xl border-3 border-yellow-400 overflow-hidden z-50 min-w-[200px]">
@@ -1009,16 +1021,15 @@ const handleViewThanTaiList = () => {
                   setShowMiniGameMenu(false);
                   handleMiniGame();
                 }}
-                className={`w-full px-4 py-3 text-left font-bold text-white hover:bg-blue-600 transition-colors flex items-center gap-3 ${
-                  isMiniGameActive ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`w-full px-4 py-3 text-left font-bold text-white hover:bg-blue-600 transition-colors flex items-center gap-3 ${isMiniGameActive ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 <span className="text-2xl">▶️</span>
                 <span>Chơi game</span>
               </button>
-              
+
               <div className="border-t border-blue-500"></div>
-              
+
               <button
                 onClick={() => {
                   setShowMiniGameMenu(false);
@@ -1041,12 +1052,12 @@ const handleViewThanTaiList = () => {
           >
             🧧
           </button>
-          
+
           {/* Tooltip */}
           <span className="absolute left-24 top-1/2 -translate-y-1/2 bg-black text-white px-3 py-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-sm font-bold pointer-events-none">
             Thần tài gõ cửa
           </span>
-          
+
           {/* Menu con */}
           {showThanTaiMenu && (
             <div className="absolute left-24 top-0 bg-gradient-to-br from-orange-700 to-orange-900 rounded-xl shadow-2xl border-3 border-yellow-400 overflow-hidden z-50 min-w-[200px]">
@@ -1060,18 +1071,17 @@ const handleViewThanTaiList = () => {
                 <span className="text-2xl">🎁</span>
                 <span>Kích hoạt</span>
               </button>
-              
+
               <div className="border-t border-orange-500"></div>
-              
+
               <button
                 onClick={() => {
                   setShowThanTaiMenu(false);
                   handleViewThanTaiList();
                 }}
                 disabled={thanTaiWinners.length === 0}
-                className={`w-full px-4 py-3 text-left font-bold text-white hover:bg-orange-600 transition-colors flex items-center gap-3 ${
-                  thanTaiWinners.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
-                }`}
+                className={`w-full px-4 py-3 text-left font-bold text-white hover:bg-orange-600 transition-colors flex items-center gap-3 ${thanTaiWinners.length === 0 ? 'opacity-50 cursor-not-allowed' : ''
+                  }`}
               >
                 <span className="text-2xl">👁️</span>
                 <span>Xem danh sách</span>
@@ -1087,7 +1097,7 @@ const handleViewThanTaiList = () => {
       </div>
 
       {/* Bell notification - GÓC DƯỚI PHẢI - LUÔN HIỆN */}
-      <div 
+      <div
         onClick={() => setShowBellModal(true)}
         className="fixed bottom-4 right-4 z-50"
       >
@@ -1097,7 +1107,7 @@ const handleViewThanTaiList = () => {
             <div className="absolute inset-0 bg-yellow-400 rounded-full blur-xl opacity-50 animate-pulse"></div>
             <button className="relative bg-gradient-to-br from-red-600 to-red-800 hover:from-red-700 hover:to-red-900 text-yellow-300 w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-yellow-400 shadow-2xl cursor-pointer hover:scale-110 transition-all flex flex-col items-center justify-center">
               <svg className="w-14 h-14 md:w-16 md:h-16 animate-swing" fill="currentColor" viewBox="0 0 20 20">
-                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+                <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
               </svg>
               <span className="font-black text-xl md:text-2xl mt-1">{bellCount}</span>
             </button>
@@ -1106,7 +1116,7 @@ const handleViewThanTaiList = () => {
           // Không có người rung - Màu xám
           <button className="bg-gradient-to-br from-gray-600 to-gray-800 hover:from-gray-700 hover:to-gray-900 text-gray-300 w-24 h-24 md:w-28 md:h-28 rounded-full border-4 border-gray-500 shadow-2xl cursor-pointer hover:scale-110 transition-all flex flex-col items-center justify-center">
             <svg className="w-14 h-14 md:w-16 md:h-16" fill="currentColor" viewBox="0 0 20 20">
-              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z"/>
+              <path d="M10 2a6 6 0 00-6 6v3.586l-.707.707A1 1 0 004 14h12a1 1 0 00.707-1.707L16 11.586V8a6 6 0 00-6-6zM10 18a3 3 0 01-3-3h6a3 3 0 01-3 3z" />
             </svg>
             <span className="font-black text-lg mt-1">0</span>
           </button>
@@ -1123,13 +1133,12 @@ const handleViewThanTaiList = () => {
             <div className="space-y-2 max-h-96 overflow-y-auto mb-4">
               {bellQueue.map((bell, index) => {
                 const isAnswered = bell.answered || false;
-                
+
                 return (
-                  <div 
-                    key={bell.maNV} 
-                    className={`bg-yellow-600 rounded-lg p-3 border-2 border-red-700 transition-all ${
-                      isAnswered ? 'opacity-40' : 'opacity-100'
-                    }`}
+                  <div
+                    key={bell.maNV}
+                    className={`bg-yellow-600 rounded-lg p-3 border-2 border-red-700 transition-all ${isAnswered ? 'opacity-40' : 'opacity-100'
+                      }`}
                   >
                     <div className="flex items-center gap-3">
                       <input
@@ -1167,7 +1176,7 @@ const handleViewThanTaiList = () => {
       {thanTaiWinners.length > 0 && !showThanTaiListButton && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-orange-600 to-orange-800 rounded-2xl p-6 border-4 border-yellow-500 shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto relative">
-            
+
             {/* Nút tắt/mở nhạc - GÓC PHẢI TRÊN */}
             <button
               onClick={() => {
@@ -1199,7 +1208,7 @@ const handleViewThanTaiList = () => {
             <h2 className="text-3xl font-black text-yellow-300 mb-6 text-center pr-12">
               🧧 DANH SÁCH TRÚNG THƯỞNG 🧧
             </h2>
-            
+
             {/* Danh sách winners */}
             <div className="grid grid-cols-1 gap-3 mb-6">
               {thanTaiWinners.map((winner, index) => (
@@ -1216,7 +1225,7 @@ const handleViewThanTaiList = () => {
                 </div>
               ))}
             </div>
-            
+
             {/* Nút đóng - GỌN HƠN */}
             <button
               onClick={handleCloseThanTai}
@@ -1234,19 +1243,18 @@ const handleViewThanTaiList = () => {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-yellow-600 to-yellow-700 rounded-2xl p-6 border-4 border-red-700 shadow-2xl max-w-2xl w-full mx-4">
             <h2 className="text-3xl font-black text-red-900 mb-4 text-center">
-              🏆 TOP 5 NHANH NHẤT
+              🏆 TOP {topPlayerCount} NHANH NHẤT
             </h2>
             <div className="space-y-3 mb-4">
               {top5Results.length > 0 ? (
                 top5Results.map((result: any) => (
                   <div key={result.maNV} className="bg-white rounded-lg p-4 border-3 border-red-700">
                     <div className="flex items-center gap-4">
-                      <span className={`font-black text-3xl w-12 h-12 rounded-full flex items-center justify-center ${
-                        result.rank === 1 ? 'bg-yellow-400 text-red-900' :
+                      <span className={`font-black text-3xl w-12 h-12 rounded-full flex items-center justify-center ${result.rank === 1 ? 'bg-yellow-400 text-red-900' :
                         result.rank === 2 ? 'bg-gray-300 text-gray-700' :
-                        result.rank === 3 ? 'bg-orange-400 text-white' :
-                        'bg-gray-200 text-gray-600'
-                      }`}>
+                          result.rank === 3 ? 'bg-orange-400 text-white' :
+                            'bg-gray-200 text-gray-600'
+                        }`}>
                         {result.rank}
                       </span>
                       <div className="flex-1">
@@ -1280,38 +1288,36 @@ const handleViewThanTaiList = () => {
             <h2 className="text-3xl font-black text-yellow-300 mb-2 text-center">
               🏆 BẢNG XẾP HẠNG MINI GAME 🏆
             </h2>
-            
+
             <p className="text-yellow-200 text-center text-sm mb-6">
-              Tham gia: {miniGameResults.filter(r => !r.skipped).length} | 
-              Bỏ qua: {miniGameResults.filter(r => r.skipped).length} | 
+              Tham gia: {miniGameResults.filter(r => !r.skipped).length} |
+              Bỏ qua: {miniGameResults.filter(r => r.skipped).length} |
               Tổng: {miniGameResults.length}
             </p>
-            
+
             {/* Top 10 */}
             <div className="space-y-2 mb-6">
               {miniGameResults.slice(0, 10).map((result, index) => {
                 const isTop5 = index < 5;
-                
+
                 return (
-                  <div 
-                    key={result.msnv} 
-                    className={`rounded-lg p-4 border-3 ${
-                      isTop5 
-                        ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 border-yellow-700'
-                        : 'bg-white border-gray-300'
-                    }`}
+                  <div
+                    key={result.msnv}
+                    className={`rounded-lg p-4 border-3 ${isTop5
+                      ? 'bg-gradient-to-r from-yellow-400 to-yellow-600 border-yellow-700'
+                      : 'bg-white border-gray-300'
+                      }`}
                   >
                     <div className="flex items-center gap-4">
-                      <span className={`font-black text-3xl w-12 h-12 rounded-full flex items-center justify-center ${
-                        index === 0 ? 'bg-yellow-500 text-white' :
+                      <span className={`font-black text-3xl w-12 h-12 rounded-full flex items-center justify-center ${index === 0 ? 'bg-yellow-500 text-white' :
                         index === 1 ? 'bg-gray-400 text-white' :
-                        index === 2 ? 'bg-orange-500 text-white' :
-                        isTop5 ? 'bg-blue-500 text-white' :
-                        'bg-gray-200 text-gray-700'
-                      }`}>
+                          index === 2 ? 'bg-orange-500 text-white' :
+                            isTop5 ? 'bg-blue-500 text-white' :
+                              'bg-gray-200 text-gray-700'
+                        }`}>
                         {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                       </span>
-                      
+
                       <div className="flex-1">
                         <p className={`font-black text-lg ${isTop5 ? 'text-red-900' : 'text-gray-800'}`}>
                           {result.name}
@@ -1320,7 +1326,7 @@ const handleViewThanTaiList = () => {
                           {result.msnv}
                         </p>
                       </div>
-                      
+
                       <div className="text-right">
                         <p className={`font-black text-2xl ${isTop5 ? 'text-red-900' : 'text-gray-800'}`}>
                           {result.score}
@@ -1334,7 +1340,7 @@ const handleViewThanTaiList = () => {
                 );
               })}
             </div>
-            
+
             {/* Nút xem tất cả */}
             {miniGameResults.length > 10 && (
               <button
@@ -1346,7 +1352,7 @@ const handleViewThanTaiList = () => {
                 📋 Xem tất cả {miniGameResults.length} người
               </button>
             )}
-            
+
             <button
               onClick={handleCloseMiniGame}
               className="w-full bg-red-600 hover:bg-red-700 text-white font-black text-xl px-6 py-4 rounded-lg"
@@ -1365,7 +1371,7 @@ const handleViewThanTaiList = () => {
               🎯 MỞ ĐÁP ÁN BÍ ẨN
             </h2>
             <p className="text-white font-bold text-center mb-6 text-lg">
-              Bạn có chắc chắn muốn mở đáp án ô chữ bí ẩn?<br/>
+              Bạn có chắc chắn muốn mở đáp án ô chữ bí ẩn?<br />
               <span className="text-yellow-300">Hành động này không thể hoàn tác!</span>
             </p>
             <div className="flex gap-3">

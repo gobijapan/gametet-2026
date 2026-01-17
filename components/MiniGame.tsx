@@ -49,7 +49,7 @@ export default function MiniGame({
     bombs: 0,
   });
   const [basketX, setBasketX] = useState(0);
-  
+
   const gameStateRef = useRef({
     items: [] as FallingItem[],
     nextId: 0,
@@ -59,6 +59,19 @@ export default function MiniGame({
     basketDirection: 'right' as 'left' | 'right',
     lastBasketX: 0,
   });
+
+  const coinSoundRef = useRef<HTMLAudioElement | null>(null);
+  const bombSoundRef = useRef<HTMLAudioElement | null>(null);
+
+  // Initialize sounds
+  useEffect(() => {
+    coinSoundRef.current = new Audio('/sounds/coin-sound.mp3');
+    bombSoundRef.current = new Audio('/sounds/bomb-sound.mp3');
+
+    // Preload
+    coinSoundRef.current.load();
+    bombSoundRef.current.load();
+  }, []);
 
   // Initialize
   useEffect(() => {
@@ -81,29 +94,16 @@ export default function MiniGame({
     // Load images
     const coinImg = new Image();
     coinImg.src = '/coin.png';
-    coinImg.onerror = () => console.log('Coin image not found');
-    
     const goldImg = new Image();
     goldImg.src = '/gold-bar.png';
-    goldImg.onerror = () => console.log('Gold image not found');
-    
     const bombImg = new Image();
     bombImg.src = '/bomb.png';
-    bombImg.onerror = () => console.log('Bomb image not found');
-
     const basketImg = new Image();
-basketImg.src = '/basket.png'; // ← THÊM
-basketImg.onerror = () => console.log('Basket image not found');
+    basketImg.src = '/basket.png';
 
-    // Load sounds
-    const coinSound = new Audio('/coin-sound.mp3');
-    coinSound.onerror = () => console.log('Coin sound not found');
-    
-    const bombSound = new Audio('/bomb-sound.mp3');
-    bombSound.onerror = () => console.log('Bomb sound not found');
-
-    // Spawn item
+    // Spawn item function (moved here for clarity)
     const spawnItem = () => {
+      // ... same spawn logic
       const rand = Math.random() * 100;
       let type: 'coin' | 'gold' | 'bomb';
       let speed: number;
@@ -111,7 +111,7 @@ basketImg.onerror = () => console.log('Basket image not found');
 
       if (rand < coinRate) {
         type = 'coin';
-        speed = canvas.height / (coinSpeed * 60); // px per frame (60 FPS)
+        speed = canvas.height / (coinSpeed * 60);
         points = coinPoints;
       } else if (rand < coinRate + goldRate) {
         type = 'gold';
@@ -170,26 +170,28 @@ basketImg.onerror = () => console.log('Basket image not found');
         ) {
           // Caught!
           setScore((prev) => prev + item.points);
-          
+
           if (item.type === 'coin') {
             setStats((prev) => ({ ...prev, coins: prev.coins + 1 }));
-            
-            // Dừng và phát lại từ đầu
-            coinSound.pause();
-            coinSound.currentTime = 0;
-            coinSound.play().catch(() => {});
+
+            if (coinSoundRef.current) {
+              coinSoundRef.current.currentTime = 0;
+              coinSoundRef.current.play().catch(() => { });
+            }
           } else if (item.type === 'gold') {
             setStats((prev) => ({ ...prev, golds: prev.golds + 1 }));
-            
-            coinSound.pause();
-            coinSound.currentTime = 0;
-            coinSound.play().catch(() => {});
+
+            if (coinSoundRef.current) {
+              coinSoundRef.current.currentTime = 0;
+              coinSoundRef.current.play().catch(() => { });
+            }
           } else {
             setStats((prev) => ({ ...prev, bombs: prev.bombs + 1 }));
-            
-            bombSound.pause();
-            bombSound.currentTime = 0;
-            bombSound.play().catch(() => {});
+
+            if (bombSoundRef.current) {
+              bombSoundRef.current.currentTime = 0;
+              bombSoundRef.current.play().catch(() => { });
+            }
           }
 
           return false; // Remove item
@@ -224,13 +226,13 @@ basketImg.onerror = () => console.log('Basket image not found');
           // Fallback
           ctx.fillStyle = item.type === 'coin' ? '#FFD700' : item.type === 'gold' ? '#FFA500' : '#FF0000';
           ctx.beginPath();
-          ctx.arc(item.x + itemWidth/2, item.y + itemHeight/2, itemWidth/2, 0, Math.PI * 2);
+          ctx.arc(item.x + itemWidth / 2, item.y + itemHeight / 2, itemWidth / 2, 0, Math.PI * 2);
           ctx.fill();
-          
+
           ctx.fillStyle = '#000';
           ctx.font = 'bold 20px Arial';
           ctx.textAlign = 'center';
-          ctx.fillText(item.type === 'coin' ? '🪙' : item.type === 'gold' ? '💰' : '💣', item.x + itemWidth/2, item.y + itemHeight/2 + 7);
+          ctx.fillText(item.type === 'coin' ? '🪙' : item.type === 'gold' ? '💰' : '💣', item.x + itemWidth / 2, item.y + itemHeight / 2 + 7);
         }
 
         return true;
@@ -242,9 +244,9 @@ basketImg.onerror = () => console.log('Basket image not found');
 
       if (basketImg.complete) {
         ctx.save();
-        
+
         const direction = gameStateRef.current.basketDirection;
-        
+
         if (direction === 'left') {
           // Flip ngang khi di chuyển sang trái
           ctx.translate(gameStateRef.current.basketX, basketImgY);
@@ -266,7 +268,7 @@ basketImg.onerror = () => console.log('Basket image not found');
             basketImgHeight
           );
         }
-        
+
         ctx.restore();
       } else {
         // Fallback nếu ảnh chưa load
@@ -277,7 +279,7 @@ basketImg.onerror = () => console.log('Basket image not found');
           basketWidth,
           basketHeight
         );
-        
+
         ctx.strokeStyle = '#FFD700';
         ctx.lineWidth = 3;
         ctx.strokeRect(
@@ -297,14 +299,14 @@ basketImg.onerror = () => console.log('Basket image not found');
     const handleMouseMove = (e: MouseEvent) => {
       const rect = canvas.getBoundingClientRect();
       const newX = e.clientX - rect.left;
-      
+
       // Xác định hướng di chuyển
       if (newX < gameStateRef.current.basketX) {
         gameStateRef.current.basketDirection = 'left';
       } else if (newX > gameStateRef.current.basketX) {
         gameStateRef.current.basketDirection = 'right';
       }
-      
+
       gameStateRef.current.basketX = newX;
       setBasketX(newX);
     };
@@ -315,14 +317,14 @@ basketImg.onerror = () => console.log('Basket image not found');
       const rect = canvas.getBoundingClientRect();
       const touch = e.touches[0];
       const newX = touch.clientX - rect.left;
-      
+
       // Xác định hướng
       if (newX < gameStateRef.current.basketX) {
         gameStateRef.current.basketDirection = 'left';
       } else if (newX > gameStateRef.current.basketX) {
         gameStateRef.current.basketDirection = 'right';
       }
-      
+
       gameStateRef.current.basketX = newX;
       setBasketX(newX);
     };
@@ -367,13 +369,12 @@ basketImg.onerror = () => console.log('Basket image not found');
           <span>💰 {stats.golds}</span>
           <span>💣 {stats.bombs}</span>
         </div>
-        
-        <div className={`text-3xl font-black px-4 py-1 rounded-full ${
-          timeLeft <= 5 ? 'bg-red-600 text-yellow-300 animate-pulse' : 'bg-yellow-400 text-red-900'
-        }`}>
+
+        <div className={`text-3xl font-black px-4 py-1 rounded-full ${timeLeft <= 5 ? 'bg-red-600 text-yellow-300 animate-pulse' : 'bg-yellow-400 text-red-900'
+          }`}>
           {timeLeft}s
         </div>
-        
+
         <div className="text-white font-black text-2xl">
           {score}
         </div>
