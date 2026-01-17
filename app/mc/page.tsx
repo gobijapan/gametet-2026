@@ -640,7 +640,7 @@ export default function MCPage() {
 
     setThanTaiWinners(winnersData);
 
-    const audio = new Audio('/than-tai-music.mp3');
+    const audio = new Audio('/sounds/than-tai-music.mp3');
     audio.volume = 0.8; // 80% volume
     audio.play();
 

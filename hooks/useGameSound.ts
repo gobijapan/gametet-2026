@@ -12,14 +12,14 @@ export default function useGameSound() {
         // Initialize audio objects
         // Note: User needs to provide files for missing sounds
         const sounds: { [key in SoundType]: string } = {
-            countdown: '/sounds/countdown.mp3', // Need file
-            start: '/sounds/start.mp3',         // Need file
-            correct: '/sounds/correct.mp3',     // Need file
-            wrong: '/sounds/wrong.mp3',         // Need file
-            bell: '/sounds/bell.mp3',           // Need file
-            coin: '/coin-sound.mp3',            // Exists
-            bomb: '/bomb-sound.mp3',            // Exists
-            thantai: '/than-tai-music.mp3',     // Exists
+            countdown: '/sounds/countdown.mp3',
+            start: '/sounds/start.mp3',
+            correct: '/sounds/correct.mp3',
+            wrong: '/sounds/wrong.mp3',
+            bell: '/sounds/bell.mp3',
+            coin: '/sounds/coin-sound.mp3',
+            bomb: '/sounds/bomb-sound.mp3',
+            thantai: '/sounds/than-tai-music.mp3',
         };
 
         Object.entries(sounds).forEach(([key, src]) => {
