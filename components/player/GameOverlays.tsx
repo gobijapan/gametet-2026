@@ -114,6 +114,39 @@ export default function GameOverlays({
         }
     }, [isDoorOpen, isThanTaiWinner]);
 
+    // Keyboard shortcuts for modals (Safe Instant Access - 50ms buffer)
+    useEffect(() => {
+        let isReady = false;
+        // 50ms buffer to prevent double-trigger from initial KeyDown bubble
+        const timer = setTimeout(() => { isReady = true; }, 50);
+
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (!isReady) return;
+
+            if (showConfirmModal) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onConfirmSubmit();
+                } else if (e.key === 'Escape') {
+                    onCancelSubmit();
+                }
+            } else if (showBellConfirmModal) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    onConfirmBell();
+                } else if (e.key === 'Escape') {
+                    onCancelBell();
+                }
+            }
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => {
+            window.removeEventListener('keydown', handleKeyDown);
+            clearTimeout(timer);
+        };
+    }, [showConfirmModal, showBellConfirmModal, onConfirmSubmit, onCancelSubmit, onConfirmBell, onCancelBell]);
+
 
     return (
         <>

@@ -8,9 +8,9 @@ import { auth, database } from '@/lib/firebase';
 import GameHeader from '@/components/player/GameHeader';
 import GameHUD from '@/components/player/GameHUD';
 import QuestionCard from '@/components/player/QuestionCard';
-import AnswerSection from '@/components/player/AnswerSection';
 import GameOverlays from '@/components/player/GameOverlays';
 import useGameSound from '@/hooks/useGameSound';
+import { compareWithoutDiacritics, removeDiacritics } from '@/lib/vietnamese';
 
 export default function PlayerPage() {
   const router = useRouter();
@@ -73,7 +73,10 @@ export default function PlayerPage() {
     return false;
   });
 
+  // Refs
   const inputRefs = useRef<{ [key: string]: (HTMLInputElement | null)[] }>({});
+  const backspaceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const backspaceStartTimeRef = useRef<number>(0);
   const selectedQuestionRef = useRef<any>(null); // Ref to access current question inside closure
   const lastCountdownTimeRef = useRef<number>(0); // Ref to track last sound play time
   const questionStartTimeRef = useRef<number>(0); // Ref to track start time for duration calc
@@ -156,7 +159,16 @@ export default function PlayerPage() {
                 const qId = currentQ.id;
                 setOptimisticQuestionId(qId);
                 setTimeLeft(30);
-                // Removed auto-focus to prevent lag when typing early
+                setTimeLeft(30);
+                // Auto-focus immediately when countdown ends
+                setTimeout(() => {
+                  // Only focus if user is NOT already typing
+                  if (document.activeElement?.tagName !== 'INPUT') {
+                    if (inputRefs.current[qId]?.[0]) {
+                      inputRefs.current[qId][0]?.focus({ preventScroll: true });
+                    }
+                  }
+                }, 50);
               }
             } else {
               setCountdown(newRemaining);
@@ -284,23 +296,29 @@ export default function PlayerPage() {
         // TỰ ĐỘNG CHUYỂN về câu đang hỏi
         const question = questions.find(q => q.order === questionData.questionId);
         if (question) {
-          setSelectedQuestionForView(question);
-          // Auto-focus to first empty input or next input
-          setTimeout(() => {
-            const currentAnswers = answers[question.id] || [];
-            let focusIndex = 0;
-            for (let i = 0; i < question.answer.length; i++) {
-              if (!currentAnswers[i]) {
-                focusIndex = i;
-                break;
-              } else if (i === question.answer.length - 1) {
-                focusIndex = question.answer.length - 1;
+          // Auto-focus logic: ONLY if we switched questions OR if no input is focused
+          // This prevents cursor jumping when timer updates currentQuestion
+          if (selectedQuestionForView?.id !== question.id) {
+            setSelectedQuestionForView(question);
+            setTimeout(() => {
+              // Only focus if user is NOT already typing to prevent cursor jump/lag
+              if (document.activeElement?.tagName === 'INPUT') return;
+
+              const currentAnswers = answers[question.id] || [];
+              let focusIndex = 0;
+              for (let i = 0; i < question.answer.length; i++) {
+                if (!currentAnswers[i]) {
+                  focusIndex = i;
+                  break;
+                } else if (i === question.answer.length - 1) {
+                  focusIndex = question.answer.length - 1;
+                }
               }
-            }
-            if (inputRefs.current[question.id]?.[focusIndex]) {
-              inputRefs.current[question.id][focusIndex]?.focus({ preventScroll: true });
-            }
-          }, 150);
+              if (inputRefs.current[question.id]?.[focusIndex]) {
+                inputRefs.current[question.id][focusIndex]?.focus({ preventScroll: true });
+              }
+            }, 150);
+          }
         }
       } else {
         setCurrentQuestion(null);
@@ -375,9 +393,14 @@ export default function PlayerPage() {
     setTotalWrong(wrong);
   }, [questions, submittedAnswers, myAnswersCorrect, user]);
 
-  // My Answers (Check correctness and play sound)
+  // My Answers (Check correctness and play sound - SUSPENSE MODE)
   useEffect(() => {
     if (!user) return;
+
+    // SUSPENSE UPDATE: Delay validation until time's up!
+    // Only proceed if timer ended (timeLeft === 0)
+    // We also check if we have questions to avoid empty runs
+    if (timeLeft > 0) return;
 
     questions.forEach(async (q) => {
       if (revealedResults[q.id]) {
@@ -386,16 +409,29 @@ export default function PlayerPage() {
 
         if (snapshot.exists()) {
           const myAnswer = snapshot.val().answer.toUpperCase();
-          const correctAnswer = revealedResults[q.id].correctAnswer.toUpperCase();
+
+          // Safe check for correctAnswer type
+          const rawCorrect = revealedResults[q.id].correctAnswer;
+          const correctAnswer = Array.isArray(rawCorrect)
+            ? rawCorrect.join('').toUpperCase()
+            : String(rawCorrect).toUpperCase();
+
           const isCorrect = myAnswer === correctAnswer;
 
           setMyAnswersCorrect(prev => {
+            // Play sound if status changes (and it's the first time identifying result)
+            // AND ensure we only play sound for the CURRENT question being played to avoid spam
+            if (prev[q.id] === undefined) {
+              if (currentQuestion?.id === q.id) {
+                playSound(isCorrect ? 'correct' : 'wrong');
+              }
+            }
             return { ...prev, [q.id]: isCorrect };
           });
         }
       }
     });
-  }, [user, questions, revealedResults]);
+  }, [user, questions, revealedResults, timeLeft === 0, currentQuestion?.id]);
 
   // Submitted Answers
   useEffect(() => {
@@ -464,10 +500,22 @@ export default function PlayerPage() {
             const answerRef = ref(database, `answers/${questionId}/${user.maNV}`);
             const userAnswer = (answers[questionId] || []).join('');
 
+            // Validate answer before submitting
+            const question = questions.find(q => q.id === questionId);
+            let isCorrect = false;
+
+            if (question) {
+              // Trim and handle safe strings
+              const dbAnswer = String(question.answer || '').trim();
+              const playerAnswer = userAnswer.trim();
+              isCorrect = compareWithoutDiacritics(playerAnswer, dbAnswer);
+            }
+
             update(answerRef, {
-              answer: userAnswer || '', // Empty if no input
+              answer: userAnswer.trim() || '',
+              isCorrect: isCorrect,
               timestamp: Date.now(),
-              duration: 30000, // Full 30s
+              duration: 30000,
             }).catch(err => console.error('Auto-submit error:', err));
 
             setSubmittedAnswers(prev => new Set([...prev, questionId]));
@@ -490,6 +538,9 @@ export default function PlayerPage() {
 
     // Auto-focus to first empty input or next available
     setTimeout(() => {
+      // Smart Focus: ONLY focus if user is NOT already typing
+      if (document.activeElement?.tagName === 'INPUT') return;
+
       if (submittedAnswers.has(question.id)) return; // Skip if already submitted
 
       const currentAnswers = answers[question.id] || [];
@@ -514,12 +565,23 @@ export default function PlayerPage() {
 
   const handleInputChange = (questionId: string, index: number, value: string) => {
     if (submittedAnswers.has(questionId)) return;
+
+    // Only allow A-Z (no Vietnamese diacritics, no numbers, no special chars)
+    const cleanValue = value.replace(/[^A-Za-z]/g, '');
+    if (!cleanValue) return;
+
     const newAnswers = { ...answers };
     if (!newAnswers[questionId]) newAnswers[questionId] = [];
-    newAnswers[questionId][index] = value.toUpperCase();
+
+    // Get the last typed character (in case of paste or multiple chars)
+    const lastChar = cleanValue[cleanValue.length - 1].toUpperCase();
+
+    // Always fill current box and move to next
+    newAnswers[questionId][index] = lastChar;
     setAnswers(newAnswers);
 
-    if (value.length === 1 && inputRefs.current[questionId]) {
+    // Auto-focus to next input
+    if (inputRefs.current[questionId]) {
       const nextInput = inputRefs.current[questionId][index + 1];
       if (nextInput) {
         nextInput.focus({ preventScroll: true });
@@ -531,83 +593,139 @@ export default function PlayerPage() {
     const question = questions.find(q => q.id === questionId);
     if (!question) return;
 
+    // Disable space bar
+    if (e.key === ' ') {
+      e.preventDefault();
+      return;
+    }
+
+    // Enter to submit
     if (e.key === 'Enter') {
       e.preventDefault();
-      if (showConfirmModal && confirmQuestionId === questionId) {
-        handleSubmitAnswer();
-      } else {
-        const answer = (answers[questionId] || []).join('');
-        if (answer.length === question.answer.length) {
-          setConfirmQuestionId(questionId);
-          setShowConfirmModal(true);
-        }
+      const answer = (answers[questionId] || []).join('');
+      if (answer.length === question.answer.length) {
+        setConfirmQuestionId(questionId);
+        setShowConfirmModal(true);
       }
+      return;
     }
+
+    // Backspace: delete previous box (or current if empty)
     if (e.key === 'Backspace') {
       e.preventDefault();
-      const currentValue = answers[questionId]?.[index] || '';
 
-      // Delete current value and move to previous
+      // Start timer for hold-to-clear-all (3 seconds)
+      if (!backspaceTimerRef.current) {
+        backspaceStartTimeRef.current = Date.now();
+        backspaceTimerRef.current = setTimeout(() => {
+          // Clear all answers for this question
+          const newAnswers = { ...answers };
+          newAnswers[questionId] = [];
+          setAnswers(newAnswers);
+
+          // Focus first input
+          if (inputRefs.current[questionId]?.[0]) {
+            inputRefs.current[questionId][0]?.focus({ preventScroll: true });
+          }
+
+          backspaceTimerRef.current = null;
+        }, 3000);
+      }
+
       const newAnswers = { ...answers };
       if (!newAnswers[questionId]) newAnswers[questionId] = [];
-      newAnswers[questionId][index] = '';
-      setAnswers(newAnswers);
 
-      // Move to previous input if exists
-      if (index > 0 && inputRefs.current[questionId]) {
-        inputRefs.current[questionId][index - 1]?.focus({ preventScroll: true });
+      const currentValue = newAnswers[questionId][index] || '';
+
+      if (currentValue) {
+        // Current box has value → clear it and stay
+        newAnswers[questionId][index] = '';
+        setAnswers(newAnswers);
+      } else if (index > 0) {
+        // Current box is empty → delete previous box and move there
+        newAnswers[questionId][index - 1] = '';
+        setAnswers(newAnswers);
+        inputRefs.current[questionId]?.[index - 1]?.focus({ preventScroll: true });
       }
+
+      return;
     }
+
+    // Delete: just clear current box
     if (e.key === 'Delete') {
       e.preventDefault();
       const newAnswers = { ...answers };
       if (!newAnswers[questionId]) newAnswers[questionId] = [];
       newAnswers[questionId][index] = '';
       setAnswers(newAnswers);
+      return;
+    }
+  };
+
+  // Clear backspace timer on key up
+  const handleKeyUp = (e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && backspaceTimerRef.current) {
+      clearTimeout(backspaceTimerRef.current);
+      backspaceTimerRef.current = null;
     }
   };
 
   const handleSubmitAnswer = async () => {
     if (!user || !confirmQuestionId) return;
     const answer = (answers[confirmQuestionId] || []).join('');
-    try {
-      const answerRef = ref(database, `answers/${confirmQuestionId}/${user.maNV}`);
 
-      // Calculate duration - ONLY use Firebase startTimestamp for consistency
-      let duration = 0;
+    const question = questions.find(q => q.id === confirmQuestionId);
 
-      if (currentQuestion && currentQuestion.startTimestamp) {
-        // Single source of truth: Firebase startTimestamp
-        duration = Math.max(0, Date.now() - currentQuestion.startTimestamp);
-      } else if (currentQuestion && currentQuestion.timerEnd) {
-        // Fallback if startTimestamp missing
-        const startTime = currentQuestion.timerEnd - 30000;
-        duration = Math.max(0, Date.now() - startTime);
-      } else {
-        const q = questions.find(q => q.id === confirmQuestionId);
-        if (q && q.timerEnd) {
-          const startTime = q.timerEnd - 30000;
-          duration = Math.max(0, Date.now() - startTime);
-        }
+    if (!question) return;
+
+    // Use relaxed comparison: removing diacritics from both sides
+    const isCorrect = compareWithoutDiacritics(answer, question.answer);
+
+    // Optimistic UI update
+    setRevealedResults(prev => ({
+      ...prev,
+      [confirmQuestionId]: {
+        correctAnswer: question.answer.toUpperCase().split(''),
+        isCorrect: isCorrect
       }
+    }));
 
-      await update(answerRef, {
-        answer,
-        timestamp: Date.now(),
-        duration: duration
-      });
+    setSubmittedAnswers(prev => new Set(prev).add(confirmQuestionId));
+    setShowConfirmModal(false);
+    setConfirmQuestionId(null);
+    setShowBellConfirmModal(false);
 
-      setSubmittedAnswers(prev => new Set([...prev, confirmQuestionId]));
-      setShowConfirmModal(false);
-      setConfirmQuestionId(null);
-      playSound('correct'); // Just a confirmation sound, not necessarily "correct answer"
-      setSuccessMessage('Đã gửi đáp án thành công!');
-      setShowSuccessModal(true);
-      setTimeout(() => setShowSuccessModal(false), 2000);
-    } catch (error) {
-      console.error('Lỗi khi gửi đáp án:', error);
+    // REMOVED Optimistic Sound/Stats Update here used to be.
+    // Now we wait for Time's Up to reveal result/sound.
+
+    // Calculate duration (Synchronized with MC View: User Timestamp - Server Start Timestamp)
+    const timestamp = Date.now();
+    let duration = 0;
+
+    // Check match
+    if (currentQuestion && currentQuestion.questionDbId === confirmQuestionId && currentQuestion.startTimestamp) {
+      duration = timestamp - currentQuestion.startTimestamp;
     }
+    // Fallback logic could go here, but strictly sticking to MC's formula:
+    // MC uses: (answer.timestamp - question.startTimestamp)
+
+    const answerRef = ref(database, `answers/${confirmQuestionId}/${user.maNV}`);
+    update(answerRef, {
+      answer: answer.trim().toUpperCase(),
+      isCorrect: isCorrect,
+      timestamp: timestamp,
+      duration: duration
+    }).catch(err => console.error(err));
+
+    // Show Duration Toast
+    setSuccessMessage(`Đã gửi! Thời gian: ${(duration / 1000).toFixed(2)}s`);
+    setShowSuccessModal(true);
+    setTimeout(() => setShowSuccessModal(false), 2500);
   };
+
+
+
+  const handleClickSecretKey = (question: any) => setSelectedQuestionForView(question);
 
   const handleRequestSubmit = (questionId: string) => {
     setConfirmQuestionId(questionId);
@@ -636,8 +754,6 @@ export default function PlayerPage() {
       console.error(error);
     }
   };
-
-  const handleClickSecretKey = (question: any) => setSelectedQuestionForView(question);
 
   const handleStartMiniGame = async () => {
     setShowMiniGameChoice(false);
@@ -733,19 +849,12 @@ export default function PlayerPage() {
                 isQuestionRevealed={!!isQuestionRevealed}
                 revealedResults={revealedResults}
                 timeLeft={timeLeft}
-              />
-              <AnswerSection
-                selectedQuestionForView={selectedQuestionForView}
                 answers={answers}
                 submittedAnswers={submittedAnswers}
-                isCurrentlyPlaying={!!isCurrentlyPlaying}
-                timeLeft={timeLeft}
                 inputRefs={inputRefs}
                 handleInputChange={handleInputChange}
                 handleKeyDown={handleKeyDown}
-                onConfirmSubmit={handleRequestSubmit}
-                revealedResults={revealedResults}
-                answerDurations={answerDurations}
+                handleKeyUp={handleKeyUp}
               />
             </div>
           )}

@@ -78,7 +78,7 @@ export default function SecretWordPage() {
 
       const usersRef = ref(database, 'users');
       const snapshot = await get(usersRef);
-      
+
       if (snapshot.exists()) {
         let foundUser: any = null;
         snapshot.forEach((childSnapshot) => {
@@ -113,50 +113,59 @@ export default function SecretWordPage() {
         }));
         questionsArray.sort((a, b) => a.order - b.order);
         setQuestions(questionsArray);
-
-        // Initialize items
-        const initialItems = questionsArray.map(q => ({
-          id: q.id,
-          letter: q.answer[q.keyPosition - 1],
-          questionOrder: q.order,
-        }));
-        setItems(initialItems);
+        // We don't set items here; the separate useEffect handles merging
       }
     });
 
     return () => unsubscribe();
   }, []);
 
-  // Load saved keyMapping from Firebase
-useEffect(() => {
-  const loadKeyMapping = async () => {
-    const configRef = ref(database, 'config/keyMapping');
-    const snapshot = await get(configRef);
-    
-    if (snapshot.exists() && questions.length > 0) {
-      const savedMapping = snapshot.val();
-      
-      // Sắp xếp lại items theo keyMapping đã lưu
-      const sortedItems = Object.keys(savedMapping)
-        .sort((a, b) => parseInt(a) - parseInt(b))
-        .map(position => {
-          const keyInfo = savedMapping[position];
-          return {
-            id: keyInfo.questionId,
-            letter: keyInfo.letter,
-            questionOrder: keyInfo.fromQuestion,
-          };
-        });
-      
-      setItems(sortedItems);
-      toast.success('Đã load thiết lập Ô Bí Ẩn!');
-    }
-  };
+  // Load saved keyMapping from Firebase and merge with new questions
+  useEffect(() => {
+    const loadKeyMapping = async () => {
+      const configRef = ref(database, 'config/keyMapping');
+      const snapshot = await get(configRef);
 
-  if (questions.length > 0) {
+      if (questions.length > 0) {
+        const savedMapping = snapshot.exists() ? snapshot.val() : {};
+        const mappedItems: any[] = [];
+        const mappedIds = new Set<string>();
+
+        // 1. Get items from saved mapping (preserving saved order)
+        Object.keys(savedMapping)
+          .sort((a, b) => parseInt(a) - parseInt(b))
+          .forEach(position => {
+            const info = savedMapping[position];
+            const q = questions.find(item => item.id === info.questionId);
+            if (q) {
+              mappedItems.push({
+                id: q.id,
+                letter: q.answer[q.keyPosition - 1] || '?',
+                questionOrder: q.order,
+              });
+              mappedIds.add(q.id);
+            }
+          });
+
+        // 2. Add new questions that aren't in the mapping yet
+        const newItems = questions
+          .filter(q => !mappedIds.has(q.id))
+          .map(q => ({
+            id: q.id,
+            letter: q.answer[q.keyPosition - 1] || '?',
+            questionOrder: q.order,
+          }));
+
+        setItems([...mappedItems, ...newItems]);
+
+        if (snapshot.exists() && mappedItems.length > 0) {
+          toast.success('Đã nạp thiết lập Ô Bí Ẩn!');
+        }
+      }
+    };
+
     loadKeyMapping();
-  }
-}, [questions]);
+  }, [questions]);
 
   // Update secret word preview
   useEffect(() => {
@@ -230,13 +239,13 @@ useEffect(() => {
         </div>
       ) : (
         <div className="space-y-6">
-  
+
           {/* Phần trên: Kéo thả */}
           <div className="bg-white rounded-xl shadow-lg p-6">
             <h2 className="text-xl font-black text-gray-800 mb-4">
               Các chữ KEY hiện có (Kéo thả để sắp xếp)
             </h2>
-            
+
             <DndContext
               sensors={sensors}
               collisionDetection={closestCenter}
@@ -265,7 +274,7 @@ useEffect(() => {
           {/* Phần dưới: Preview */}
           <div className="bg-gradient-to-br from-purple-600 to-purple-800 rounded-xl shadow-lg p-6 text-white">
             <h2 className="text-xl font-black mb-4">Preview Đáp Án Bí Ẩn</h2>
-            
+
             <div className="bg-white/10 backdrop-blur-md rounded-xl p-6 mb-4">
               <p className="text-sm font-bold mb-3 text-purple-200 text-center">Đáp án cuối cùng:</p>
               <div className="flex gap-2 flex-wrap justify-center mb-4">

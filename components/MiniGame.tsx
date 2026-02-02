@@ -60,18 +60,81 @@ export default function MiniGame({
     lastBasketX: 0,
   });
 
-  const coinSoundRef = useRef<HTMLAudioElement | null>(null);
-  const bombSoundRef = useRef<HTMLAudioElement | null>(null);
+  const [bgExists, setBgExists] = useState(false);
 
-  // Initialize sounds
+  // AudioContext for stable sound
+  const audioCtxRef = useRef<AudioContext | null>(null);
+  const buffersRef = useRef<{ [key: string]: AudioBuffer }>({});
+
   useEffect(() => {
-    coinSoundRef.current = new Audio('/sounds/coin-sound.mp3');
-    bombSoundRef.current = new Audio('/sounds/bomb-sound.mp3');
+    // Check if minibg exists to avoid 404 error in console
+    const img = new Image();
+    img.onload = () => setBgExists(true);
+    img.onerror = () => setBgExists(false);
+    img.src = '/minibg.png';
 
-    // Preload
-    coinSoundRef.current.load();
-    bombSoundRef.current.load();
+    const initAudio = async () => {
+      try {
+        if (typeof window === 'undefined') return;
+        const AudioCtxClass = window.AudioContext || (window as any).webkitAudioContext;
+        if (!AudioCtxClass) return;
+
+        if (!audioCtxRef.current || audioCtxRef.current.state === 'closed') {
+          audioCtxRef.current = new AudioCtxClass();
+        }
+        const ctx = audioCtxRef.current;
+
+        const loadBuffer = async (url: string) => {
+          const response = await fetch(url);
+          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+          const arrayBuffer = await response.arrayBuffer();
+          return await ctx.decodeAudioData(arrayBuffer);
+        };
+
+        // Pre-load sounds
+        const [coin, bomb] = await Promise.all([
+          loadBuffer('/sounds/coin-sound.mp3').catch(e => { console.warn('Coin sound missing'); return null; }),
+          loadBuffer('/sounds/bomb-sound.mp3').catch(e => { console.warn('Bomb sound missing'); return null; })
+        ]);
+
+        if (coin) buffersRef.current['coin'] = coin;
+        if (bomb) buffersRef.current['bomb'] = bomb;
+      } catch (err) {
+        console.error('AudioContext setup error:', err);
+      }
+    };
+
+    initAudio();
+    return () => {
+      if (audioCtxRef.current && audioCtxRef.current.state !== 'closed') {
+        audioCtxRef.current.close().catch(() => { });
+      }
+    };
   }, []);
+
+  const playSound = (type: 'coin' | 'bomb') => {
+    const ctx = audioCtxRef.current;
+    if (!ctx || ctx.state === 'closed') return;
+
+    const buffer = buffersRef.current[type];
+    if (!buffer) return;
+
+    if (ctx.state === 'suspended') {
+      ctx.resume().catch(() => { });
+    }
+
+    try {
+      const source = ctx.createBufferSource();
+      source.buffer = buffer;
+      const gainNode = ctx.createGain();
+      gainNode.gain.value = type === 'coin' ? 0.6 : 0.8;
+      source.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      source.start(0);
+    } catch (e) {
+      console.warn('Playback failed:', e);
+    }
+  };
 
   // Initialize
   useEffect(() => {
@@ -173,25 +236,13 @@ export default function MiniGame({
 
           if (item.type === 'coin') {
             setStats((prev) => ({ ...prev, coins: prev.coins + 1 }));
-
-            if (coinSoundRef.current) {
-              coinSoundRef.current.currentTime = 0;
-              coinSoundRef.current.play().catch(() => { });
-            }
+            playSound('coin');
           } else if (item.type === 'gold') {
             setStats((prev) => ({ ...prev, golds: prev.golds + 1 }));
-
-            if (coinSoundRef.current) {
-              coinSoundRef.current.currentTime = 0;
-              coinSoundRef.current.play().catch(() => { });
-            }
+            playSound('coin'); // Gold uses coin sound too? Or maybe separate if available. Using coin for now.
           } else {
             setStats((prev) => ({ ...prev, bombs: prev.bombs + 1 }));
-
-            if (bombSoundRef.current) {
-              bombSoundRef.current.currentTime = 0;
-              bombSoundRef.current.play().catch(() => { });
-            }
+            playSound('bomb');
           }
 
           return false; // Remove item
@@ -383,8 +434,14 @@ export default function MiniGame({
       {/* Canvas */}
       <canvas
         ref={canvasRef}
-        className="flex-1 bg-gradient-to-b from-sky-400 to-sky-200 cursor-none"
-        style={{ minHeight: '400px' }}
+        className="flex-1 cursor-default"
+        style={{
+          minHeight: '400px',
+          backgroundImage: bgExists ? 'url(/minibg.png)' : 'none',
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+          backgroundColor: 'transparent' // Ensure transparency if image is missing
+        }}
       />
     </div>
   );

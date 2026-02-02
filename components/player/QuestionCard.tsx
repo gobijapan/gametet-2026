@@ -1,26 +1,62 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { compareWithoutDiacritics } from '@/lib/vietnamese';
 
 interface QuestionCardProps {
     selectedQuestionForView: any;
-    currentQuestion: any; // for timer info
+    currentQuestion: any;
     isCurrentlyPlaying: boolean;
     isQuestionRevealed: boolean;
     revealedResults: { [key: string]: any };
     timeLeft: number;
+    answers: { [key: string]: string[] };
+    submittedAnswers: Set<string>;
+    inputRefs: any;
+    handleInputChange: (questionId: string, index: number, value: string) => void;
+    handleKeyDown: (e: React.KeyboardEvent, questionId: string, index: number) => void;
+    handleKeyUp: (e: React.KeyboardEvent) => void;
 }
 
 export default function QuestionCard({
     selectedQuestionForView,
-    // currentQuestion, // unused in UI directly, but needed for `isCurrentlyPlaying` logic passed in
     isCurrentlyPlaying,
     isQuestionRevealed,
     revealedResults,
     timeLeft,
+    answers,
+    submittedAnswers,
+    inputRefs,
+    handleInputChange,
+    handleKeyDown,
+    handleKeyUp,
 }: QuestionCardProps) {
     const [isMediaZoomed, setIsMediaZoomed] = useState(false);
     const [isVideo, setIsVideo] = useState(false);
+    const [isContainerHovered, setIsContainerHovered] = useState(false);
+
+    // Auto-focus logic
+    useEffect(() => {
+        if (!selectedQuestionForView || !inputRefs?.current?.[selectedQuestionForView.id]) return;
+
+        const currentAnswer = answers[selectedQuestionForView.id] || [];
+        // Find first empty index
+        let focusIndex = Array.from({ length: selectedQuestionForView.answer.length })
+            .findIndex((_, i) => !currentAnswer[i]);
+
+        // If all filled, or none filled, focusIndex might be -1
+        if (focusIndex === -1) {
+            focusIndex = 0;
+        }
+
+        const inputEl = inputRefs.current[selectedQuestionForView.id][focusIndex];
+        if (inputEl) {
+            // Small timeout to ensure render
+            setTimeout(() => {
+                inputEl.focus({ preventScroll: true });
+            }, 10);
+        }
+    }, [selectedQuestionForView.id]); // Only run when question changes
 
     if (!selectedQuestionForView) return null;
 
@@ -40,15 +76,84 @@ export default function QuestionCard({
 
             <div className="relative p-4 md:p-6 border-4 border-yellow-400 rounded-3xl">
 
-                {/* 1) PREVIEW TRÊN CÙNG — 1 HÀNG AUTO-FIT, KHÔNG WRAP */}
+                {/* 1) INTERACTIVE INPUT BOXES */}
                 <div className="bg-[#fff2d2]/95 rounded-3xl p-3 md:p-4 border-2 border-yellow-300/70 shadow-[inset_0_0_0_2px_rgba(255,255,255,0.45)]">
                     <div className="flex justify-center">
-                        <div className="flex flex-wrap justify-center gap-2 md:gap-3">
+                        <div
+                            className="flex flex-wrap justify-center gap-2 md:gap-3"
+                            onMouseEnter={() => setIsContainerHovered(true)}
+                            onMouseLeave={() => setIsContainerHovered(false)}
+                            style={{ perspective: '1000px' }}
+                        >
                             {Array.from({ length: selectedQuestionForView.answer.length }).map((_, index) => {
                                 const isKey = index === selectedQuestionForView.keyPosition - 1;
-                                const letter = isQuestionRevealed
-                                    ? revealedResults[selectedQuestionForView.id]?.correctAnswer?.[index] || ""
-                                    : "";
+                                const isSubmitted = submittedAnswers.has(selectedQuestionForView.id);
+                                const result = revealedResults?.[selectedQuestionForView.id];
+                                const currentAnswerArr = answers[selectedQuestionForView.id] || [];
+                                const val = currentAnswerArr[index] || "";
+
+                                // Robust correctness check locally
+                                let isCorrect = false;
+                                if (result && result.correctAnswer) {
+                                    const userFullAnswer = currentAnswerArr.join('');
+                                    const dbAnswer = Array.isArray(result.correctAnswer)
+                                        ? result.correctAnswer.join('')
+                                        : String(result.correctAnswer);
+
+                                    isCorrect = compareWithoutDiacritics(userFullAnswer, dbAnswer);
+                                }
+
+                                // Determine styling and flip state
+                                let boxStyle = "";
+                                let textColor = "";
+                                let showFlip = false;
+
+                                // LOGIC QUYẾT ĐỊNH STYLE
+                                // SUSPENSE MODE: If time is NOT up, hide the result!
+                                if (timeLeft > 0 && isSubmitted) {
+                                    // PENDING STATE (Đã nộp, đang đợi kết quả)
+                                    boxStyle = isKey
+                                        ? "bg-blue-100 border-blue-600 border-4"
+                                        : "bg-blue-50 border-blue-400";
+                                    textColor = "text-blue-900";
+                                } else if (isCorrect) {
+                                    // 1. TRẢ LỜI ĐÚNG (Chỉ hiện khi Hết Giờ hoặc Đã Có Kết Quả)
+                                    // Luôn hiển thị Xanh/Vàng (Theme Tết)
+                                    // Không bao giờ lật
+                                    boxStyle = isKey
+                                        ? "bg-gradient-to-b from-yellow-300 to-yellow-500 border-yellow-800 border-4"
+                                        : "bg-gradient-to-b from-emerald-400 to-emerald-600 border-emerald-800";
+                                    textColor = "text-white";
+                                } else {
+                                    // 2. TRẢ LỜI SAI hoặc CHƯA TRẢ LỜI
+                                    // Chỉ cho phép "Lật xem đáp án" khi HẾT GIỜ (timeLeft === 0) và HOVER
+                                    if (timeLeft === 0 && isContainerHovered && result) {
+                                        // REVEAL MODE (Flip to show correct)
+                                        showFlip = true;
+                                        // Khi lật ra đáp án ĐÚNG -> Style của đáp án đúng
+                                        boxStyle = isKey
+                                            ? "bg-gradient-to-b from-yellow-300 to-yellow-500 border-yellow-800 border-4"
+                                            : "bg-gradient-to-b from-emerald-400 to-emerald-600 border-emerald-800";
+                                        textColor = "text-white";
+                                    } else {
+                                        // NORMAL / WRONG STATE (Chưa hết giờ hoặc Không hover)
+                                        if (isSubmitted) {
+                                            // Đã nộp nhưng sai -> Đỏ
+                                            boxStyle = "bg-gradient-to-b from-red-500 to-red-700 border-red-900";
+                                            textColor = "text-white";
+                                        } else {
+                                            // Đang nhập liệu / Chưa nộp -> Trắng/Vàng nhạt
+                                            boxStyle = isKey
+                                                ? val
+                                                    ? "bg-gradient-to-b from-yellow-200 to-yellow-400 border-yellow-800 border-4"
+                                                    : "bg-red-100 border-red-900 border-4"
+                                                : val
+                                                    ? "bg-white border-emerald-600"
+                                                    : "bg-white/80 border-red-700";
+                                            textColor = val ? "text-red-950" : "text-transparent";
+                                        }
+                                    }
+                                }
 
                                 return (
                                     <div
@@ -56,19 +161,54 @@ export default function QuestionCard({
                                         className={[
                                             "w-[34px] h-[34px] md:w-[56px] md:h-[56px]",
                                             "rounded-2xl border-2 flex items-center justify-center",
-                                            "font-black uppercase select-none",
+                                            "font-black uppercase",
                                             "shadow-[0_10px_0_rgba(0,0,0,0.12)]",
-                                            isKey
-                                                ? letter
-                                                    ? "bg-gradient-to-b from-yellow-300 to-yellow-500 border-yellow-800 text-red-950 border-4"
-                                                    : "bg-red-100 border-red-900 border-4"
-                                                : letter
-                                                    ? "bg-white border-emerald-600 text-emerald-800"
-                                                    : "bg-white/80 border-red-700 text-transparent",
+                                            "transition-all duration-500",
+                                            boxStyle,
                                         ].join(" ")}
-                                        style={{ fontSize: "clamp(14px, 2.4vw, 30px)" }}
+                                        style={{
+                                            fontSize: "clamp(14px, 2.4vw, 30px)",
+                                            transformStyle: 'preserve-3d',
+                                            transform: showFlip ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                                        }}
                                     >
-                                        {letter}
+                                        {/* Input or Display */}
+                                        {!isSubmitted && !result ? (
+                                            <input
+                                                ref={el => {
+                                                    if (!inputRefs.current[selectedQuestionForView.id]) {
+                                                        inputRefs.current[selectedQuestionForView.id] = [];
+                                                    }
+                                                    inputRefs.current[selectedQuestionForView.id][index] = el;
+                                                }}
+                                                type="text"
+                                                maxLength={1}
+                                                value={val}
+                                                onChange={(e) => handleInputChange(selectedQuestionForView.id, index, e.target.value)}
+                                                onKeyDown={(e) => handleKeyDown(e, selectedQuestionForView.id, index)}
+                                                onKeyUp={handleKeyUp}
+                                                // disabled prop removed to allow typing anytime
+                                                className={[
+                                                    "w-full h-full bg-transparent border-none outline-none text-center",
+                                                    "font-black uppercase caret-red-700",
+                                                    textColor,
+                                                ].join(" ")}
+                                                style={{ fontSize: "clamp(14px, 2.4vw, 30px)" }}
+                                                inputMode="text"
+                                                autoComplete="off"
+                                            />
+                                        ) : (
+                                            <span
+                                                className={textColor}
+                                                style={{
+                                                    backfaceVisibility: 'hidden',
+                                                    transform: showFlip ? 'rotateY(180deg)' : 'rotateY(0deg)',
+                                                    display: 'inline-block'
+                                                }}
+                                            >
+                                                {showFlip && result ? result.correctAnswer?.[index] : val}
+                                            </span>
+                                        )}
                                     </div>
                                 );
                             })}
@@ -148,8 +288,8 @@ export default function QuestionCard({
                             {(selectedQuestionForView.type === "image" || selectedQuestionForView.type === "scramble") && (
                                 <div
                                     className={`bg-[#fff2d2]/90 rounded-3xl p-4 border-2 border-yellow-300/70 flex items-center justify-center shadow-[inset_0_0_0_2px_rgba(255,255,255,0.35)] ${selectedQuestionForView.type === "scramble"
-                                            ? "min-h-[120px]" // Smaller for scramble
-                                            : "h-[200px] md:h-[280px] lg:h-[360px]" // Fixed height for image/video
+                                        ? "min-h-[120px]" // Smaller for scramble
+                                        : "h-[200px] md:h-[280px] lg:h-[360px]" // Fixed height for image/video
                                         }`}
                                 >
                                     {(isCurrentlyPlaying || isQuestionRevealed) ? (

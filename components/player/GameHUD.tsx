@@ -30,7 +30,7 @@ export default function GameHUD({
             <button
                 onClick={onRingBell}
                 disabled={!canRingBell}
-                className={`fixed left-3 md:left-4 top-1/2 -translate-y-1/2 z-[60]
+                className={`fixed left-3 md:left-4 top-1/2 -translate-y-1/2 z-[20]
     w-[90px] h-[90px] md:w-[110px] md:h-[110px]
     rounded-full
     border-4 border-yellow-300
