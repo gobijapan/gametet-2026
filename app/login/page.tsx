@@ -19,54 +19,41 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
   
-    // 1. Làm sạch MSNV ngay từ đầu (Viết thường + Xóa khoảng trắng thừa)
-    const cleanMSNV = msnv.toLowerCase().trim();
+    // 1. Làm sạch input (Xóa khoảng trắng)
+    const rawMSNV = msnv.trim();
   
     try {
-      // 2. Tự tạo email ảo dựa trên MSNV đã làm sạch
-      // Ví dụ: S12345 -> s12345@gametet.local
-      const fakeEmail = `${cleanMSNV}@gametet.local`;
+      // 2. Định dạng cho Email: LUÔN VIẾT THƯỜNG (vì mail fake của mày là lowercase)
+      const loginEmail = `${rawMSNV.toLowerCase()}@gametet.local`;
   
-      // 3. Đăng nhập trước để lấy quyền (Authorize)
-      // Sau khi dòng này chạy xong, mày đã có "vé thông hành" để đọc Database
-      await signInWithEmailAndPassword(auth, fakeEmail, password);
+      // 3. Đăng nhập để lấy quyền
+      await signInWithEmailAndPassword(auth, loginEmail, password);
   
-      // 4. Bây giờ mới vào Database để lấy thông tin User/Role
-      // Nhớ dùng cleanMSNV vì Key trong Database thường lưu ở dạng chữ thường
-      const userRef = ref(database, `users/${cleanMSNV}`);
+      // 4. Định dạng cho Database: LUÔN VIẾT HOA (để khớp với DB của mày)
+      const dbKey = rawMSNV.toUpperCase();
+      const userRef = ref(database, `users/${dbKey}`);
+      
+      console.log("Truy vấn Database tại:", `users/${dbKey}`); // Debug xem có đúng chữ HOA không
       const snapshot = await get(userRef);
   
       if (!snapshot.exists()) {
-        // Trường hợp hiếm: Có tài khoản Auth nhưng không có profile trong Database
-        setError('Tài khoản hợp lệ nhưng không tìm thấy thông tin nhân viên!');
+        setError(`Không tìm thấy profile cho mã ${dbKey} trong hệ thống!`);
         return;
       }
   
       const userData = snapshot.val();
       const role = userData.role || 'player';
   
-      // 5. Chuyển hướng theo Role
-      switch (role) {
-        case 'admin':
-          router.push('/admin');
-          break;
-        case 'mc':
-          router.push('/mc');
-          break;
-        default:
-          router.push('/player');
-      }
+      // 5. Chuyển hướng
+      if (role === 'admin') router.push('/admin');
+      else if (role === 'mc') router.push('/mc');
+      else router.push('/player');
   
     } catch (err: any) {
-      console.error("Lỗi đăng nhập:", err);
-      
-      // Xử lý các mã lỗi phổ biến của Firebase Auth
-      if (err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password' || err.code === 'auth/user-not-found') {
+      if (err.code === 'auth/invalid-credential') {
         setError('Mã số nhân viên hoặc mật khẩu không đúng!');
-      } else if (err.message.includes('permission_denied')) {
-        setError('Lỗi phân quyền: Mày chưa có quyền đọc dữ liệu này!');
       } else {
-        setError('Lỗi hệ thống: ' + err.message);
+        setError('Lỗi: ' + err.message);
       }
     } finally {
       setLoading(false);
