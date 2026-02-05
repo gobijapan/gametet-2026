@@ -2,7 +2,7 @@ export default function Home() {
   return (
     <div className="min-h-screen flex flex-col items-center justify-center p-4">
       <h1 className="text-5xl font-black text-gold-shadow mb-8">
-        GAME GIẢI Ô CHỮ TẾT 2026
+        ĐẠI MÃ KHAI XUÂN 2026
       </h1>
       <div className="flex gap-4 flex-wrap justify-center">
         <a 
