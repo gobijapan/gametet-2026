@@ -602,6 +602,21 @@ export default function PlayerPage() {
     // Enter to submit
     if (e.key === 'Enter') {
       e.preventDefault();
+
+      // Only allow submission if this question is currently being played
+      const isThisQuestionActive =
+        (currentQuestion?.questionDbId === questionId) ||
+        (optimisticQuestionId === questionId);
+
+      if (!isThisQuestionActive) {
+        return; // Prevent submission if question is not active
+      }
+
+      // Only allow submission if time is still running
+      if (timeLeft <= 0) {
+        return; // Prevent submission after time's up
+      }
+
       const answer = (answers[questionId] || []).join('');
       if (answer.length === question.answer.length) {
         setConfirmQuestionId(questionId);
@@ -681,15 +696,7 @@ export default function PlayerPage() {
     // Use relaxed comparison: removing diacritics from both sides
     const isCorrect = compareWithoutDiacritics(answer, question.answer);
 
-    // Optimistic UI update
-    setRevealedResults(prev => ({
-      ...prev,
-      [confirmQuestionId]: {
-        correctAnswer: question.answer.toUpperCase().split(''),
-        isCorrect: isCorrect
-      }
-    }));
-
+    // Mark as submitted (no optimistic result reveal - wait for MC to broadcast)
     setSubmittedAnswers(prev => new Set(prev).add(confirmQuestionId));
     setShowConfirmModal(false);
     setConfirmQuestionId(null);

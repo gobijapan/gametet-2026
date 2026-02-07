@@ -189,7 +189,7 @@ export default function GameOverlays({
                             className="bg-white rounded-2xl p-6 md:p-8 max-w-sm w-full text-center border-4 border-yellow-400"
                         >
                             <h3 className="text-xl md:text-2xl font-black text-red-900 mb-4 uppercase">
-                                Xác nhận nộp bài?
+                                Xác nhận gửi ?
                             </h3>
                             <p className="text-gray-600 mb-6 font-medium">
                                 Bạn có chắc chắn muốn gửi đáp án này không?<br />
@@ -371,15 +371,15 @@ export default function GameOverlays({
 
                                 <div className="grid grid-cols-3 gap-2 mb-8 bg-black/20 p-4 rounded-xl">
                                     <div className="text-center">
-                                        <div className="text-2xl">💰</div>
+                                        <div className="text-2xl text-white">🪙 XU</div>
                                         <div className="font-bold text-white">x{miniGameStats.coins}</div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-2xl">🌟</div>
+                                        <div className="text-2xl text-white">💰 VÀNG</div>
                                         <div className="font-bold text-yellow-300">x{miniGameStats.golds}</div>
                                     </div>
                                     <div className="text-center">
-                                        <div className="text-2xl">💣</div>
+                                        <div className="text-2xl text-white">💣 BOM</div>
                                         <div className="font-bold text-red-400">x{miniGameStats.bombs}</div>
                                     </div>
                                 </div>

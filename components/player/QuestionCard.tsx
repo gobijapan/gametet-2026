@@ -187,11 +187,12 @@ export default function QuestionCard({
                                                 onChange={(e) => handleInputChange(selectedQuestionForView.id, index, e.target.value)}
                                                 onKeyDown={(e) => handleKeyDown(e, selectedQuestionForView.id, index)}
                                                 onKeyUp={handleKeyUp}
-                                                // disabled prop removed to allow typing anytime
+                                                disabled={!isCurrentlyPlaying}
                                                 className={[
                                                     "w-full h-full bg-transparent border-none outline-none text-center",
                                                     "font-black uppercase caret-red-700",
                                                     textColor,
+                                                    !isCurrentlyPlaying && "cursor-not-allowed opacity-60"
                                                 ].join(" ")}
                                                 style={{ fontSize: "clamp(14px, 2.4vw, 30px)" }}
                                                 inputMode="text"
@@ -254,14 +255,7 @@ export default function QuestionCard({
                                                 : "Xáo chữ"}
                                     </div>
 
-                                    {/* hint nhỏ cho timer */}
-                                    {isCurrentlyPlaying && (
-                                        <div className="mt-2 px-3 py-1 rounded-full bg-gradient-to-b from-[#083344] to-[#164e63] border-2 border-cyan-100 shadow-[0_10px_25px_rgba(0,0,0,0.22)]">
-                                            <span className="text-cyan-100 font-black text-[10px] uppercase tracking-[0.18em]">
-                                                giây
-                                            </span>
-                                        </div>
-                                    )}
+
                                 </div>
                             </div>
                         </div>

@@ -35,6 +35,7 @@ export default function MCPage() {
   const [thanTaiCountdown, setThanTaiCountdown] = useState(5);
   const [thanTaiWinners, setThanTaiWinners] = useState<any[]>([]);
   const [showThanTaiListButton, setShowThanTaiListButton] = useState(false);
+  const [showThanTaiNotification, setShowThanTaiNotification] = useState(false);
   const [isMusicPlaying, setIsMusicPlaying] = useState(true);
 
   const [isMiniGameActive, setIsMiniGameActive] = useState(false);
@@ -603,6 +604,7 @@ export default function MCPage() {
     const thanTaiCount = configSnapshot.exists() ? configSnapshot.val() : 10;
 
     console.log('Thần Tài count:', thanTaiCount);
+
     // Lấy danh sách online
     const onlineRef = ref(database, 'online');
     const onlineSnapshot = await get(onlineRef);
@@ -616,19 +618,51 @@ export default function MCPage() {
     const onlineUsers = Object.keys(onlineSnapshot.val());
     console.log('Online users:', onlineUsers);
 
-    const finalCount = Math.min(thanTaiCount, onlineUsers.length);
-
     if (onlineUsers.length === 0) {
       toast.error('Không có ai online!');
       return;
     }
-    console.log('Final count:', finalCount);
 
-    // Random
-    const shuffled = onlineUsers.sort(() => 0.5 - Math.random());
-    const winners = shuffled.slice(0, finalCount);
+    // Lấy danh sách người đã từng thắng (lọt Top) từ results
+    const resultsRef = ref(database, 'results');
+    const resultsSnapshot = await get(resultsRef);
+    const winnersSet = new Set<string>();
 
-    // Lấy thông tin
+    if (resultsSnapshot.exists()) {
+      const resultsData = resultsSnapshot.val();
+      Object.values(resultsData).forEach((result: any) => {
+        if (result.top5 && Array.isArray(result.top5)) {
+          result.top5.forEach((player: any) => {
+            winnersSet.add(player.maNV);
+          });
+        }
+      });
+    }
+
+    console.log('Người đã từng thắng:', Array.from(winnersSet));
+
+    // Phân loại: người chưa thắng và người đã thắng
+    const neverWon = onlineUsers.filter(msnv => !winnersSet.has(msnv));
+    const hasWon = onlineUsers.filter(msnv => winnersSet.has(msnv));
+
+    console.log('Chưa thắng bao giờ:', neverWon);
+    console.log('Đã từng thắng:', hasWon);
+
+    // Shuffle cả 2 nhóm
+    const shuffledNeverWon = neverWon.sort(() => 0.5 - Math.random());
+    const shuffledHasWon = hasWon.sort(() => 0.5 - Math.random());
+
+    // Chọn ưu tiên người chưa thắng, nếu không đủ thì lấy thêm người đã thắng
+    const selectedNeverWon = shuffledNeverWon.slice(0, thanTaiCount);
+    const needMore = thanTaiCount - selectedNeverWon.length;
+    const selectedHasWon = needMore > 0 ? shuffledHasWon.slice(0, needMore) : [];
+
+    const winners = [...selectedNeverWon, ...selectedHasWon];
+    const finalCount = winners.length;
+
+    console.log('Số người chọn được:', finalCount);
+
+    // Lấy thông tin user
     const usersRef = ref(database, 'users');
     const usersSnapshot = await get(usersRef);
     const usersData = usersSnapshot.exists() ? usersSnapshot.val() : {};
@@ -636,18 +670,19 @@ export default function MCPage() {
     const winnersData = winners.map(msnv => ({
       msnv,
       name: usersData[msnv]?.name || 'Unknown',
+      hasWon: winnersSet.has(msnv), // Đánh dấu người đã từng thắng
     }));
 
+    // Lưu vào state để MC có thể xem sau (KHÔNG tự mở Modal)
     setThanTaiWinners(winnersData);
 
+    // Phát nhạc
     const audio = new Audio('/sounds/than-tai-music.mp3');
-    audio.volume = 0.8; // 80% volume
+    audio.volume = 0.8;
     audio.play();
-
-    // Lưu để dừng sau
     (window as any).__thanTaiAudio = audio;
 
-    // Gửi signal
+    // Gửi signal tới Player
     const winnersObj: any = {};
     winners.forEach(msnv => {
       winnersObj[msnv] = true;
@@ -659,13 +694,16 @@ export default function MCPage() {
     await set(ref(database, 'game/thanTai'), {
       active: true,
       winners: winnersObj,
+      winnersData: winnersData, // Lưu cả thông tin chi tiết để MC xem sau
       count: finalCount,
       timestamp: Date.now(),
     });
-    console.log('Signal sent!');
-    console.log('Data saved to Firebase!');
 
-    toast.success(`Đã chọn ${thanTaiCount} người!`);
+    console.log('Signal sent!');
+    toast.success(`Đã chọn ${finalCount} người! (${selectedNeverWon.length} chưa thắng, ${selectedHasWon.length} đã thắng)`);
+
+    // Hiển thị overlay thông báo thay vì mở danh sách ngay
+    setShowThanTaiNotification(true);
   };
 
   const handleCancelThanTai = () => {
@@ -673,7 +711,7 @@ export default function MCPage() {
   };
 
   const handleCloseThanTai = async () => {
-    setShowThanTaiListButton(true);
+    setShowThanTaiListButton(false); // Đóng Modal danh sách
 
     // Dừng nhạc
     if ((window as any).__thanTaiAudio) {
@@ -688,7 +726,7 @@ export default function MCPage() {
   };
 
   const handleViewThanTaiList = () => {
-    setShowThanTaiListButton(false); // Ẩn nút "Xem lại" → Modal hiện lại
+    setShowThanTaiListButton(true); // Hiển thị Modal danh sách
   };
 
   // Handle toggle answered
@@ -1172,8 +1210,85 @@ export default function MCPage() {
         </div>
       )}
 
+      {/* Thần Tài Notification Overlay */}
+      {showThanTaiNotification && (
+        <div className="fixed inset-0 bg-black/90 flex items-center justify-center z-50 overflow-hidden">
+          {/* Họa tiết Tết - Pháo hoa */}
+          <div className="absolute inset-0 pointer-events-none">
+            {[...Array(20)].map((_, i) => (
+              <div
+                key={i}
+                className="absolute animate-pulse"
+                style={{
+                  left: `${Math.random() * 100}%`,
+                  top: `${Math.random() * 100}%`,
+                  fontSize: `${20 + Math.random() * 30}px`,
+                  animationDelay: `${Math.random() * 2}s`,
+                  opacity: 0.3 + Math.random() * 0.4,
+                }}
+              >
+                {['🎆', '🎇', '✨', '🧧', '🏮', '🎊'][Math.floor(Math.random() * 6)]}
+              </div>
+            ))}
+          </div>
+
+          {/* Main content */}
+          <div className="relative bg-gradient-to-br from-red-600 via-orange-600 to-yellow-600 rounded-3xl p-8 md:p-12 border-8 border-yellow-400 shadow-2xl max-w-3xl w-full mx-4 animate-bounce-slow">
+            {/* Họa tiết góc */}
+            <div className="absolute top-0 left-0 text-6xl md:text-8xl opacity-20">🧧</div>
+            <div className="absolute top-0 right-0 text-6xl md:text-8xl opacity-20">🧧</div>
+            <div className="absolute bottom-0 left-0 text-6xl md:text-8xl opacity-20">🏮</div>
+            <div className="absolute bottom-0 right-0 text-6xl md:text-8xl opacity-20">🏮</div>
+
+            {/* Header */}
+            <div className="text-center mb-8 relative z-10">
+              <div className="text-7xl md:text-9xl mb-4 animate-bounce">🎁</div>
+              <h1 className="text-4xl md:text-6xl font-black text-yellow-300 mb-4 drop-shadow-2xl">
+                THẦN TÀI GÕ CỬA!
+              </h1>
+              <div className="flex items-center justify-center gap-4 mb-6">
+                <span className="text-5xl animate-pulse">🧧</span>
+                <p className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg">
+                  Hãy nhanh mở cửa<br />để đón Thần Tài
+                </p>
+                <span className="text-5xl animate-pulse">🧧</span>
+              </div>
+
+              {/* Số người trúng */}
+              <div className="bg-white/20 backdrop-blur-sm rounded-2xl px-6 py-4 inline-block border-4 border-yellow-400">
+                <p className="text-yellow-300 font-black text-xl md:text-2xl">
+                  🎊 {thanTaiWinners.length} người may mắn đã được chọn! 🎊
+                </p>
+              </div>
+            </div>
+
+            {/* Buttons */}
+            <div className="flex flex-col md:flex-row gap-4 relative z-10 max-w-lg mx-auto">
+              <button
+                onClick={() => {
+                  setShowThanTaiNotification(false);
+                  setShowThanTaiListButton(true); // Mở danh sách ngay
+                }}
+                className="flex-1 bg-gradient-to-r from-yellow-400 to-yellow-600 hover:from-yellow-500 hover:to-yellow-700 text-red-900 font-black text-lg md:text-xl px-6 py-3 rounded-xl border-2 border-red-700 shadow-lg transform hover:scale-105 transition-all"
+              >
+                XEM DANH SÁCH
+              </button>
+
+              <button
+                onClick={() => setShowThanTaiNotification(false)}
+                className="flex-1 bg-white/20 hover:bg-white/30 backdrop-blur-sm text-white font-black text-lg md:text-xl px-6 py-3 rounded-xl border-2 border-white/50 shadow-lg transform hover:scale-105 transition-all"
+              >
+                ĐÓNG
+              </button>
+            </div>
+
+
+          </div>
+        </div>
+      )}
+
       {/* Thần Tài winners modal */}
-      {thanTaiWinners.length > 0 && !showThanTaiListButton && (
+      {thanTaiWinners.length > 0 && showThanTaiListButton && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
           <div className="bg-gradient-to-br from-orange-600 to-orange-800 rounded-2xl p-6 border-4 border-yellow-500 shadow-2xl max-w-2xl w-full mx-4 max-h-[80vh] overflow-y-auto relative">
 
@@ -1212,7 +1327,14 @@ export default function MCPage() {
             {/* Danh sách winners */}
             <div className="grid grid-cols-1 gap-3 mb-6">
               {thanTaiWinners.map((winner, index) => (
-                <div key={winner.msnv} className="bg-white rounded-lg p-4 border-3 border-yellow-400">
+                <div key={winner.msnv} className="bg-white rounded-lg p-4 border-3 border-yellow-400 relative">
+                  {/* Badge đánh dấu người đã từng thắng */}
+                  {winner.hasWon && (
+                    <div className="absolute top-2 right-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white text-xs font-bold px-2 py-1 rounded-full border-2 border-blue-700 shadow-md">
+                      ⭐
+                    </div>
+                  )}
+
                   <div className="flex items-center gap-3">
                     <span className="bg-gradient-to-br from-yellow-400 to-yellow-600 text-red-900 font-black text-2xl w-12 h-12 rounded-full flex items-center justify-center border-3 border-red-700 flex-shrink-0">
                       {index + 1}
